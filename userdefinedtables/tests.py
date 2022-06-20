@@ -1,4 +1,5 @@
 from django.db import IntegrityError
+from django.db.models.deletion import ProtectedError
 from django.test import TestCase
 
 from model_bakery import baker
@@ -47,3 +48,34 @@ class SingleLineOfTextColumnTestCase(TestCase):
         # ASSERT
         with self.assertRaises(ValueError):
             entry = baker.make("userdefinedtables.singlelineoftextcolumnentry", column=column, value="1" * 256)
+
+
+class ChoiceColumnTestCase(TestCase):
+    def test__choice_cannot_be_deleted_after_foreign_keyed_by_choiceentry(self):
+        # ASSIGN
+        choice = baker.make("userdefinedtables.choice")
+        choice_entry = baker.make("userdefinedtables.choiceentry", value=choice)
+
+        # ACT
+        # ASSERT
+        with self.assertRaises(ProtectedError):
+            choice.delete()
+
+
+class NumberColumnTestCase(TestCase):
+    def test__numbercolumn_minimum_cannot_be_more_than_maximum(self):
+        # ASSIGN
+        # ACT
+        # ASSERT
+        with self.assertRaises(IntegrityError):
+            baker.make("userdefinedtables.numbercolumn", minimum=10, maximum=1)
+
+    def test__set_no_maximum_works_as_expected(self):
+        # ASSIGN
+        number_column = baker.make("userdefinedtables.numbercolumn", maximum=20, minimum=0)
+
+        # ACT
+        number_column.set_no_maximum()
+
+        # ASSERT
+        self.assertTrue(10**6 < number_column.maximum)

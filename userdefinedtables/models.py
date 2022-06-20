@@ -107,23 +107,25 @@ class ChoiceEntry(Entry):
 
 
 class NumberColumn(Column):
-    minimum = models.DecimalField(default="-Infinity", **DECIMAL_FIELD_KWARGS)
-    maximum = models.DecimalField(default="Infinity", **DECIMAL_FIELD_KWARGS)
+    minimum = models.DecimalField(null=True, default=None, **DECIMAL_FIELD_KWARGS)
+    maximum = models.DecimalField(null=True, default=None, **DECIMAL_FIELD_KWARGS)
 
     class Meta:
         constraints = [
             models.CheckConstraint(
-                check=models.Q(maximum__gte=models.F("minimum")),
+                check=models.Q(maximum__gte=models.F("minimum"), maximum__isnull=False, minimum__isnull=False)
+                | models.Q(maximum__isnull=True)
+                | models.Q(minimum__isnull=True),
                 name="NumberColumn.minimum cannot exceed NumberColumn.maximum.",
             )
         ]
 
     def set_no_minimum(self):
-        self.minimum = Decimal("-Infinity")
+        self.minimum = None
         self.save()
 
     def set_no_maximum(self):
-        self.maximum = Decimal("Infinity")
+        self.maximum = None
         self.save()
 
 
@@ -143,23 +145,25 @@ class NumberEntry(Entry):
 
 
 class CurrencyColumn(Column):
-    minimum = models.DecimalField(default="-Infinity", **DECIMAL_FIELD_KWARGS)
-    maximum = models.DecimalField(default="Infinity", **DECIMAL_FIELD_KWARGS)
+    minimum = models.DecimalField(null=True, default=None, **DECIMAL_FIELD_KWARGS)
+    maximum = models.DecimalField(null=True, default=None, **DECIMAL_FIELD_KWARGS)
 
     class Meta:
         constraints = [
             models.CheckConstraint(
-                check=models.Q(maximum__gte=models.F("minimum")),
+                check=models.Q(maximum__gte=models.F("minimum"), maximum__isnull=False, minimum__isnull=False)
+                | models.Q(maximum__isnull=True)
+                | models.Q(minimum__isnull=True),
                 name="CurrencyColumn.minimum cannot exceed CurrencyColumn.maximum.",
             )
         ]
 
     def set_no_minimum(self):
-        self.minimum = Decimal("-Infinity")
+        self.minimum = None
         self.save()
 
     def set_no_maximum(self):
-        self.maximum = Decimal("Infinity")
+        self.maximum = None
         self.save()
 
 
