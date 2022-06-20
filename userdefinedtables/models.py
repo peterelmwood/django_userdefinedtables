@@ -31,6 +31,10 @@ class Column(models.Model):
         ]
 
 
+class Entry(models.Model):
+    pass
+
+
 class SingleLineOfTextColumn(Column):
     maximum_length = models.PositiveSmallIntegerField(default=255)
 
@@ -49,9 +53,8 @@ class SingleLineOfTextColumn(Column):
         super().save(*args, **kwargs)
 
 
-class SingleLineOfTextColumnEntry(models.Model):
+class SingleLineOfTextColumnEntry(Entry):
     value = models.CharField(max_length=255, blank=True, null=False)
-
     column = models.ForeignKey(
         "userdefinedtables.singlelineoftextcolumn", null=False, on_delete=models.CASCADE, related_name="entries"
     )
@@ -66,9 +69,8 @@ class MultipleLineTextColumn(Column):
     pass
 
 
-class MultipleLineTextColumnEntry(models.Model):
+class MultipleLineTextColumnEntry(Entry):
     value = models.TextField(blank=True, null=False)
-
     column = models.ForeignKey(
         "userdefinedtables.multiplelinetextcolumn",
         blank=True,
@@ -86,12 +88,12 @@ class Choice(models.Model):
     choice = models.CharField(max_length=255)
 
 
-class ChoiceEntry(models.Model):
+class ChoiceEntry(Entry):
     value = models.ForeignKey(
         "userdefinedtables.choice",
         null=False,
         related_name="choices",
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
     )
     column = models.ForeignKey(
         "userdefinedtables.choicecolumn",
@@ -122,7 +124,7 @@ class NumberColumn(Column):
         self.save()
 
 
-class NumberEntry(models.Model):
+class NumberEntry(Entry):
     value = models.DecimalField()
     column = models.ForeignKey(
         "userdefinedtables.numbercolumn",
@@ -141,7 +143,7 @@ class CurrencyColumn(NumberColumn):
     pass
 
 
-class CurrencyEntry(models.Model):
+class CurrencyEntry(NumberEntry):
     column = models.ForeignKey(
         "userdefinedtables.currencycolumn",
         null=False,
@@ -149,13 +151,20 @@ class CurrencyEntry(models.Model):
         on_delete=models.CASCADE,
     )
 
+    def __str__(self) -> str:
+        return f"${self.value}"
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
 
 class DateTimeColumn(Column):
     earliest_date = models.DateTimeField(default=datetime.fromtimestamp(0))
     latest_date = models.DateTimeField(default=None)
 
 
-class DateTimeColumnEntry(models.Model):
+class DateTimeColumnEntry(Entry):
+    value = models.DateTimeField()
     column = models.ForeignKey(
         "userdefinedtables.datetimecolumn",
         null=False,
@@ -163,17 +172,72 @@ class DateTimeColumnEntry(models.Model):
         on_delete=models.CASCADE,
     )
 
-    datetime = models.DateTimeField()
+    def save(self, *args, **kwargs):
+        if self.value > self.column.latest_date or self.value < self.column.earliest_date:
+            raise ValueError(f"Date value must be between {self.column.earliest_date} and {self.column.latest_date}.")
+        super().save(*args, **kwargs)
 
 
 class BinaryColumn(Column):
     pass
 
 
-class BinaryColumnEntry(models.Model):
+class BinaryColumnEntry(Entry):
+    value = models.BooleanField()
     column = models.ForeignKey(
         "userdefinedtables.binarycolumn",
         null=False,
         related_name="entries",
         on_delete=models.CASCADE,
     )
+
+
+class PictureColumn(Column):
+    pass
+
+
+class PictureColumnEntry(Entry):
+    value = models.ImageField()
+    column = models.ForeignKey(
+        "userdefinedtables.picturecolumn",
+        null=False,
+        related_name="entries",
+        on_delete=models.CASCADE,
+    )
+
+
+class LookupColumn(Column):
+    lookup_list = models.ForeignKey(
+        "userdefinedtables.list",
+        null=False,
+        related_name="lookups",
+        on_delete=models.CASCADE,
+    )
+    lookup_column = models.ForeignKey(
+        "userdefinedtables.column",
+        null=False,
+        related_name="lookup_columns",
+        on_delete=models.CASCADE,
+    )
+
+    def save(self, *args, **kwargs):
+        if self.lookup_column.list != self.list:
+            raise ValueError("Column must be a member of List.")
+        self.save(*args, **kwargs)
+
+
+class LookupColumnEntry(Entry):
+    value = models.ForeignKey(
+        "userdefinedtables.entry",
+        null=False,
+        on_delete=models.PROTECT,
+    )
+    column = models.ForeignKey(
+        "userdefinedtables.lookupcolumn",
+        null=False,
+        related_name="entries",
+        on_delete=models.CASCADE,
+    )
+
+    def __str__(self) -> str:
+        return f"{self.value.value}"
