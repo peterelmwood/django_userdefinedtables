@@ -1,3 +1,5 @@
+from datetime import datetime
+from decimal import Decimal
 from typing import List as TypedList
 
 from django.db import models
@@ -68,8 +70,110 @@ class MultipleLineTextColumnEntry(models.Model):
     value = models.TextField(blank=True, null=False)
 
     column = models.ForeignKey(
-        "userdefinedtables.multiplelinetextcolumn", null=False, on_delete=models.CASCADE, related_name="entries"
+        "userdefinedtables.multiplelinetextcolumn",
+        blank=True,
+        null=False,
+        on_delete=models.CASCADE,
+        related_name="entries",
     )
 
 
-class 
+class ChoiceColumn(Column):
+    pass
+
+
+class Choice(models.Model):
+    choice = models.CharField(max_length=255)
+
+
+class ChoiceEntry(models.Model):
+    value = models.ForeignKey(
+        "userdefinedtables.choice",
+        null=False,
+        related_name="choices",
+        on_delete=models.CASCADE,
+    )
+    column = models.ForeignKey(
+        "userdefinedtables.choicecolumn",
+        null=False,
+        related_name="entries",
+        on_delete=models.CASCADE,
+    )
+
+
+class NumberColumn(Column):
+    minimum = models.DecimalField(default="-Infinity")
+    maximum = models.DecimalField(default="Infinity")
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(maximum__gte=models.F("minimum")),
+                name="NumberColumn.minimum cannot exceed NumberColumn.maximum.",
+            )
+        ]
+
+    def set_no_minimum(self):
+        self.minimum = Decimal("-Infinity")
+        self.save()
+
+    def set_no_maximum(self):
+        self.maximum = Decimal("Infinity")
+        self.save()
+
+
+class NumberEntry(models.Model):
+    value = models.DecimalField()
+    column = models.ForeignKey(
+        "userdefinedtables.numbercolumn",
+        null=False,
+        related_name="entries",
+        on_delete=models.CASCADE,
+    )
+
+    def save(self, *args, **kwargs):
+        if self.column.minimum > self.value or self.column.maximum < self.value:
+            raise ValueError(f"NumberEntry.value must be between {self.column.minimum} and {self.column.maximum}")
+        super().save(*args, **kwargs)
+
+
+class CurrencyColumn(NumberColumn):
+    pass
+
+
+class CurrencyEntry(models.Model):
+    column = models.ForeignKey(
+        "userdefinedtables.currencycolumn",
+        null=False,
+        related_name="entries",
+        on_delete=models.CASCADE,
+    )
+
+
+class DateTimeColumn(Column):
+    earliest_date = models.DateTimeField(default=datetime.fromtimestamp(0))
+    latest_date = models.DateTimeField(default=None)
+
+
+class DateTimeColumnEntry(models.Model):
+    column = models.ForeignKey(
+        "userdefinedtables.datetimecolumn",
+        null=False,
+        related_name="entries",
+        on_delete=models.CASCADE,
+    )
+
+    datetime = models.DateTimeField()
+
+
+class BinaryColumn(Column):
+    pass
+
+
+class BinaryColumnEntry(models.Model):
+    column = models.ForeignKey(
+        "userdefinedtables.binarycolumn",
+        null=False,
+        related_name="entries",
+        on_delete=models.CASCADE,
+    )
