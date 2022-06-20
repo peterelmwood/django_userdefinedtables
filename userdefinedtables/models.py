@@ -6,6 +6,9 @@ from django.db import models
 from django.db.models.functions import Length
 
 
+DECIMAL_FIELD_KWARGS = {"decimal_places": 4, "max_digits": 16}
+
+
 class List(models.Model):
     name = models.CharField(max_length=255, blank=True, null=False)
 
@@ -26,7 +29,7 @@ class Column(models.Model):
         constraints: TypedList = [
             models.UniqueConstraint(
                 fields=["name", "list"],
-                name="name cannot occur twice in list",
+                name="Column name cannot occur twice in one list",
             ),
         ]
 
@@ -104,8 +107,8 @@ class ChoiceEntry(Entry):
 
 
 class NumberColumn(Column):
-    minimum = models.DecimalField(default="-Infinity")
-    maximum = models.DecimalField(default="Infinity")
+    minimum = models.DecimalField(default="-Infinity", **DECIMAL_FIELD_KWARGS)
+    maximum = models.DecimalField(default="Infinity", **DECIMAL_FIELD_KWARGS)
 
     class Meta:
         constraints = [
@@ -125,7 +128,7 @@ class NumberColumn(Column):
 
 
 class NumberEntry(Entry):
-    value = models.DecimalField()
+    value = models.DecimalField(**DECIMAL_FIELD_KWARGS)
     column = models.ForeignKey(
         "userdefinedtables.numbercolumn",
         null=False,
@@ -139,17 +142,40 @@ class NumberEntry(Entry):
         super().save(*args, **kwargs)
 
 
-class CurrencyColumn(NumberColumn):
-    pass
+class CurrencyColumn(Column):
+    minimum = models.DecimalField(default="-Infinity", **DECIMAL_FIELD_KWARGS)
+    maximum = models.DecimalField(default="Infinity", **DECIMAL_FIELD_KWARGS)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(maximum__gte=models.F("minimum")),
+                name="CurrencyColumn.minimum cannot exceed CurrencyColumn.maximum.",
+            )
+        ]
+
+    def set_no_minimum(self):
+        self.minimum = Decimal("-Infinity")
+        self.save()
+
+    def set_no_maximum(self):
+        self.maximum = Decimal("Infinity")
+        self.save()
 
 
-class CurrencyEntry(NumberEntry):
+class CurrencyEntry(Entry):
+    value = models.DecimalField(**DECIMAL_FIELD_KWARGS)
     column = models.ForeignKey(
         "userdefinedtables.currencycolumn",
         null=False,
         related_name="entries",
         on_delete=models.CASCADE,
     )
+
+    def save(self, *args, **kwargs):
+        if self.column.minimum > self.value or self.column.maximum < self.value:
+            raise ValueError(f"NumberEntry.value must be between {self.column.minimum} and {self.column.maximum}")
+        super().save(*args, **kwargs)
 
     def __str__(self) -> str:
         return f"${self.value}"
@@ -231,6 +257,7 @@ class LookupColumnEntry(Entry):
         "userdefinedtables.entry",
         null=False,
         on_delete=models.PROTECT,
+        related_name="lookup_selections",
     )
     column = models.ForeignKey(
         "userdefinedtables.lookupcolumn",
