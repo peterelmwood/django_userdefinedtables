@@ -1,5 +1,4 @@
 from datetime import datetime
-from decimal import Decimal
 from typing import List as TypedList
 
 from django.db import models
@@ -34,8 +33,50 @@ class Column(models.Model):
         ]
 
 
+class Row(models.Model):
+    list = models.ForeignKey(
+        "userdefinedtables.list",
+        on_delete=models.CASCADE,
+        related_name="rows",
+        null=False,
+        blank=False,
+    )
+    previous_row = models.OneToOneField(
+        "userdefinedtables.row",
+        on_delete=models.CASCADE,
+        related_name="_nxt_row",
+        null=True,
+    )
+    next_row = models.OneToOneField(
+        "userdefinedtables.row",
+        on_delete=models.CASCADE,
+        related_name="_prv_row",
+        null=True,
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["list", "previous_row"],
+                name="For any list, there can only be one starting row",
+                condition=models.Q(previous_row__isnull=True),
+            ),
+            models.UniqueConstraint(
+                fields=["list", "next_row"],
+                name="For any list, there can only be one ending row",
+                condition=models.Q(next_row__isnull=True),
+            ),
+        ]
+
+
 class Entry(models.Model):
-    pass
+    row = models.ForeignKey(
+        "userdefinedtables.row",
+        on_delete=models.CASCADE,
+        related_name="row_entries",
+        null=False,
+        blank=False,
+    )
 
 
 class SingleLineOfTextColumn(Column):
