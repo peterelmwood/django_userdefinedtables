@@ -169,6 +169,12 @@ class NumberColumn(Column):
         self.maximum = None
         self.save()
 
+    def lte_maximum(self, value):
+        return self.maximum is None or value <= self.maximum
+
+    def gte_minimum(self, value):
+        return self.minimum is None or value >= self.minimum
+
 
 class NumberEntry(Entry):
     value = models.DecimalField(**DECIMAL_FIELD_KWARGS)
