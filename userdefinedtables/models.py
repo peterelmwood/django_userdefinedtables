@@ -1,11 +1,9 @@
 from datetime import datetime
 from typing import List as TypedList
 
+from django.conf import settings
 from django.db import models
 from django.db.models.functions import Length
-
-
-DECIMAL_FIELD_KWARGS = {"decimal_places": 4, "max_digits": 16}
 
 
 class List(models.Model):
@@ -58,12 +56,14 @@ class Row(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["list", "previous_row"],
-                name="For any list, there can only be one starting row",
+                name="For any list, a row can only follow one or zero rows. "
+                "A null row can be followed by exactlly one row, per list.",
                 condition=models.Q(previous_row__isnull=True),
             ),
             models.UniqueConstraint(
                 fields=["list", "next_row"],
-                name="For any list, there can only be one ending row",
+                name="For any list, a row can only precede one or zero rows. "
+                "A null row can be preceded by exactlly one row, per list.",
                 condition=models.Q(next_row__isnull=True),
             ),
         ]
@@ -147,17 +147,18 @@ class ChoiceEntry(Entry):
     )
 
 
-class NumberColumn(Column):
-    minimum = models.DecimalField(null=True, default=None, **DECIMAL_FIELD_KWARGS)
-    maximum = models.DecimalField(null=True, default=None, **DECIMAL_FIELD_KWARGS)
+class NumericalColumn(models.Model):
+    minimum = models.DecimalField(null=True, default=None, **settings.DECIMAL_FIELD_KWARGS)
+    maximum = models.DecimalField(null=True, default=None, **settings.DECIMAL_FIELD_KWARGS)
 
     class Meta:
+        abstract = True
         constraints = [
             models.CheckConstraint(
                 check=models.Q(maximum__gte=models.F("minimum"), maximum__isnull=False, minimum__isnull=False)
                 | models.Q(maximum__isnull=True)
                 | models.Q(minimum__isnull=True),
-                name="NumberColumn.minimum cannot exceed NumberColumn.maximum.",
+                name="%(class)s.minimum cannot exceed %(class)s.maximum.",
             )
         ]
 
@@ -176,6 +177,10 @@ class NumberColumn(Column):
         return self.minimum is None or value >= self.minimum
 
 
+class NumberColumn(NumericalColumn, Column):
+    pass
+
+
 class NumberEntry(Entry):
     value = models.DecimalField(**DECIMAL_FIELD_KWARGS)
     column = models.ForeignKey(
@@ -191,31 +196,12 @@ class NumberEntry(Entry):
         super().save(*args, **kwargs)
 
 
-class CurrencyColumn(Column):
-    minimum = models.DecimalField(null=True, default=None, **DECIMAL_FIELD_KWARGS)
-    maximum = models.DecimalField(null=True, default=None, **DECIMAL_FIELD_KWARGS)
-
-    class Meta:
-        constraints = [
-            models.CheckConstraint(
-                check=models.Q(maximum__gte=models.F("minimum"), maximum__isnull=False, minimum__isnull=False)
-                | models.Q(maximum__isnull=True)
-                | models.Q(minimum__isnull=True),
-                name="CurrencyColumn.minimum cannot exceed CurrencyColumn.maximum.",
-            )
-        ]
-
-    def set_no_minimum(self):
-        self.minimum = None
-        self.save()
-
-    def set_no_maximum(self):
-        self.maximum = None
-        self.save()
+class CurrencyColumn(NumericalColumn, Column):
+    pass
 
 
 class CurrencyEntry(Entry):
-    value = models.DecimalField(**DECIMAL_FIELD_KWARGS)
+    value = models.DecimalField(**settings.DECIMAL_FIELD_KWARGS)
     column = models.ForeignKey(
         "userdefinedtables.currencycolumn",
         null=False,
@@ -236,8 +222,8 @@ class CurrencyEntry(Entry):
 
 
 class DateTimeColumn(Column):
-    earliest_date = models.DateTimeField(default=datetime.fromtimestamp(0))
-    latest_date = models.DateTimeField(default=None)
+    earliest_date = models.DateTimeField(default=datetime.fromtimestamp(0), null=True)
+    latest_date = models.DateTimeField(default=None, null=True)
 
 
 class DateTimeColumnEntry(Entry):
