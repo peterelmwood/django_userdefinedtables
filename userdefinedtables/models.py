@@ -148,8 +148,8 @@ class ChoiceEntry(Entry):
 
 
 class NumericalColumn(models.Model):
-    minimum = models.DecimalField(null=True, default=None, **settings.DECIMAL_FIELD_KWARGS)
-    maximum = models.DecimalField(null=True, default=None, **settings.DECIMAL_FIELD_KWARGS)
+    minimum = models.DecimalField(null=True, default=None, **settings.USER_DEFINED_TABLES_DECIMAL_FIELD_KWARGS)
+    maximum = models.DecimalField(null=True, default=None, **settings.USER_DEFINED_TABLES_DECIMAL_FIELD_KWARGS)
 
     class Meta:
         abstract = True
@@ -182,7 +182,7 @@ class NumberColumn(NumericalColumn, Column):
 
 
 class NumberEntry(Entry):
-    value = models.DecimalField(**DECIMAL_FIELD_KWARGS)
+    value = models.DecimalField(**settings.USER_DEFINED_TABLES_DECIMAL_FIELD_KWARGS)
     column = models.ForeignKey(
         "userdefinedtables.numbercolumn",
         null=False,
@@ -201,7 +201,7 @@ class CurrencyColumn(NumericalColumn, Column):
 
 
 class CurrencyEntry(Entry):
-    value = models.DecimalField(**settings.DECIMAL_FIELD_KWARGS)
+    value = models.DecimalField(**settings.USER_DEFINED_TABLES_DECIMAL_FIELD_KWARGS)
     column = models.ForeignKey(
         "userdefinedtables.currencycolumn",
         null=False,
