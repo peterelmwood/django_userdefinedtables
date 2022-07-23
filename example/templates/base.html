@@ -1,15 +1,24 @@
 {% extends "bootstrap5/bootstrap5.html" %}
 {% load bootstrap5 %}
+
+{# Load CSS and JavaScript #}
+{% bootstrap_css %}
+{% bootstrap_javascript %}
 {% block bootstrap5_title %}
     {% block title %}
-        Demo of <em>django_userdefinedtables</em>
+        Demo of django_userdefinedtables
     {% endblock title %}
 {% endblock bootstrap5_title %}
 {% block bootstrap5_content %}
     <div class="container">
-        <p>
-            <a href="{% url "home" %}">home</a>
-        </p>
+
+        <nav id="nav" class="navbar navbar-expand-lg navbar-light bg-light">
+            <ul>
+                <li><a class="dropdown-item" href="{% url "home" %}">home</a></li>
+                <li><a class="dropdown-item" href="{% url "playground" %}">playground</a></li>
+            </ul>
+        </nav>
+
         {% autoescape off %}
             {% bootstrap_messages %}
         {% endautoescape %}
@@ -18,4 +27,3 @@
         {% endblock content %}
     </div>
 {% endblock bootstrap5_content %}
-

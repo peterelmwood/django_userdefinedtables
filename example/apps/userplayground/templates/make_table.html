@@ -1,0 +1,14 @@
+{% extends "user_playground_home.html" %}
+
+{% load bootstrap5 %}
+
+{% block form %}
+    <form action="" method="post" class="form">
+        {% csrf_token %}
+        {% bootstrap_form form %}
+
+        {% buttons %}
+            <button type="submit" class="btn btn-primary">Submit</button>
+        {% endbuttons %}
+    </form>
+{% endblock form %}

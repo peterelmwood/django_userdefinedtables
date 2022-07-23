@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <p>
+        Set up your table here.
+    </p>
+    {% block form %}
+        <a href="{% url "make_table" %}">Enter form</a>
+
+    {% endblock form %}
+
+{% endblock content %}

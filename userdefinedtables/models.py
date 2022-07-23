@@ -306,3 +306,44 @@ class LookupColumnEntry(Entry):
 
     def __str__(self) -> str:
         return f"{self.value.value}"
+
+
+class URLColumn(Column):
+    pass
+
+
+class URLColumnEntry(Entry):
+    value = models.URLField()
+    column = models.ForeignKey(
+        "userdefinedtables.urlcolumn",
+        null=False,
+        related_name="entries",
+        on_delete=models.CASCADE,
+    )
+
+
+COLUMN_TYPES = [
+    SingleLineOfTextColumn,
+    MultipleLineTextColumn,
+    ChoiceColumn,
+    NumberColumn,
+    CurrencyColumn,
+    DateTimeColumn,
+    BinaryColumn,
+    PictureColumn,
+    LookupColumn,
+    URLColumn,
+]
+
+ENTRY_TYPES = [
+    SingleLineOfTextColumnEntry,
+    MultipleLineTextColumnEntry,
+    ChoiceEntry,
+    NumberEntry,
+    CurrencyEntry,
+    DateTimeColumnEntry,
+    BinaryColumnEntry,
+    PictureColumnEntry,
+    LookupColumnEntry,
+    URLColumnEntry,
+]
