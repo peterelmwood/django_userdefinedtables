@@ -33,6 +33,8 @@ INSTALLED_APPS = [
     "userdefinedtables",
     # example apps
     "example.apps.userplayground",
+    # third party
+    "bootstrap5",
 ]
 
 MIDDLEWARE = [
@@ -50,7 +52,9 @@ ROOT_URLCONF = "example.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "example/templates",],
+        "DIRS": [
+            BASE_DIR / "example/templates",
+        ],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [

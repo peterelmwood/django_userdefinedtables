@@ -1,0 +1,21 @@
+{% extends "bootstrap5/bootstrap5.html" %}
+{% load bootstrap5 %}
+{% block bootstrap5_title %}
+    {% block title %}
+        Demo of <em>django_userdefinedtables</em>
+    {% endblock title %}
+{% endblock bootstrap5_title %}
+{% block bootstrap5_content %}
+    <div class="container">
+        <p>
+            <a href="{% url "home" %}">home</a>
+        </p>
+        {% autoescape off %}
+            {% bootstrap_messages %}
+        {% endautoescape %}
+        {% block content %}
+            <p>Users will be able to define the types which go in a table in a relatively flexible manner.</p>
+        {% endblock content %}
+    </div>
+{% endblock bootstrap5_content %}
+

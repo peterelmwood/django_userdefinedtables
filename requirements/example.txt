@@ -1,0 +1,4 @@
+-r ./base.txt
+
+# styling
+django-bootstrap-v5
