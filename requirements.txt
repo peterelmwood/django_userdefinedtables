@@ -1,6 +1,7 @@
-django>=3.2
+django
+
+# for ImageField
 Pillow
 
 # testing
 tox
-model_bakery
