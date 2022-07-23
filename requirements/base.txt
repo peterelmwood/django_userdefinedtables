@@ -2,6 +2,3 @@ django
 
 # for ImageField
 Pillow
-
-# testing
-tox
