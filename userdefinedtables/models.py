@@ -1,9 +1,10 @@
 from datetime import datetime
 from typing import List as TypedList
 
-from django.conf import settings
 from django.db import models
 from django.db.models.functions import Length
+
+import settings
 
 
 class List(models.Model):
