@@ -1,3 +1,13 @@
 from django.contrib import admin
 
-# Register your models here.
+from userdefinedtables.models import Column, List
+
+
+@admin.register(List)
+class ListAdmin(admin.ModelAdmin):
+    pass
+
+
+@admin.register(Column)
+class ColumnAdmin(admin.ModelAdmin):
+    pass
