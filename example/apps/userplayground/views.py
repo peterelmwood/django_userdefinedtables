@@ -9,10 +9,9 @@ def user_playground_home(request):
 
 
 @csrf_protect
-def make_table(request):
+def add_column(request):
     if request.method == "GET":
         form = AddFieldForm()
     else:
-        print("request.POST: ", request.POST)
         form = AddFieldForm(request.POST)
-    return render(request, "make_table.html", context={"form": form})
+    return render(request, "add_column.html", context={"form": form})
