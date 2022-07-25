@@ -28,7 +28,7 @@ def add_table(request):
 def add_column(request, list_pk=None):
     my_list = get_object_or_404(List, pk=list_pk)
 
-    columns = my_list.column_columns.all()
+    columns = my_list.columns.all()
 
     if request.method == "GET":
         form = AddColumnForm()
