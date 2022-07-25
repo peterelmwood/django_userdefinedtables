@@ -1,12 +1,27 @@
 {% extends "base.html" %}
 
+{% load bootstrap5 %}
+
 {% block content %}
     <p>
-        Set up your table here.
+        Tables:
     </p>
-    {% block form %}
-        <a href="{% url "add_column" %}">Enter form</a>
-
-    {% endblock form %}
+    <div class="container">
+        <a href="{% url 'add_table' %}"><button>Add Table</button></a>
+        <table  class="table table-bordered">
+            <tr>
+                <th>Name</th>
+                <th>Columns</th>
+                <th>Edit</th>
+            </tr>
+            {% for list in lists %}
+                <tr>
+                    <td>{{ list.name }}</td>
+                    <td>{{ list.columns.count }}</td>
+                    <td><a href='{% url "add_column" list.pk %}'>Edit</a></td>
+                </tr>
+            {% endfor %}
+        </table>
+    </div>
 
 {% endblock content %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% load bootstrap5 %}
+
+{% block content %}
+    <h3 id="add_table">A table simply needs a name.</h3>
+    <form action="" method="post" class="form">
+        {% csrf_token %}
+        {% bootstrap_form form %}
+
+        {% buttons %}
+            <button type="submit" class="btn btn-primary">Submit</button>
+            <a href="{% url "playground" %}" class="btn btn-secondary">Cancel</a>
+        {% endbuttons %}
+    </form>
+{% endblock content %}
