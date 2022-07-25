@@ -40,6 +40,14 @@ class Column(models.Model):
     def __repr__(self) -> str:
         return self.__str__()
 
+    @property
+    def type(self):
+        for column_typ in COLUMN_TYPES:
+            print("column_typ._meta.model_name: ", column_typ._meta.model_name)
+            if getattr(self, column_typ._meta.model_name, None):
+                return column_typ.__name__
+        return None
+
 
 class Row(models.Model):
     list = models.ForeignKey(
