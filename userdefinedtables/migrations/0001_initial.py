@@ -206,7 +206,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='column',
             name='list',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='%(class)s_columns', to='userdefinedtables.list'),
+            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='columns', to='userdefinedtables.list'),
         ),
         migrations.CreateModel(
             name='URLColumnEntry',

@@ -23,7 +23,7 @@ class Column(models.Model):
         "userdefinedtables.list",
         null=False,
         on_delete=models.CASCADE,
-        related_name="%(class)s_columns",
+        related_name="columns",
     )
 
     class Meta:
