@@ -1,8 +1,22 @@
-{% extends "user_playground_home.html" %}
+{% extends "base.html" %}
 
 {% load bootstrap5 %}
 
-{% block form %}
+{% block content %}
+    <h3>Columns:</h3>
+    <table class="table table-bordered">
+        <tr>
+            <th>Name</th>
+            <th>Data Type</th>
+        </tr>
+        {% for column in columns %}
+            <tr>
+                <td>{{ column.name }}</td>
+                <td>{{ column.name }}</td>
+            </tr>
+        {% endfor %}
+    </table>
+
     <form action="" method="post" class="form">
         {% csrf_token %}
         {% bootstrap_form form %}
@@ -11,4 +25,4 @@
             <button type="submit" class="btn btn-primary">Submit</button>
         {% endbuttons %}
     </form>
-{% endblock form %}
+{% endblock content %}

@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, render
 from django.views import generic
 from django.views.decorators.csrf import csrf_protect
 
@@ -26,10 +26,12 @@ def add_table(request):
 
 @csrf_protect
 def add_column(request, list_pk=None):
+    my_list = get_object_or_404(List, pk=list_pk)
+
+    columns = my_list.column_columns.all()
+
     if request.method == "GET":
-        if List.objects.filter(pk=list_pk):
-            pass
         form = AddColumnForm()
     else:
         form = AddColumnForm(request.POST)
-    return render(request, "add_column.html", context={"form": form})
+    return render(request, "add_column.html", context={"form": form, "columns": columns})
