@@ -10,6 +10,9 @@ import settings
 class List(models.Model):
     name = models.CharField(max_length=255, blank=True, null=False)
 
+    def __str__(self):
+        return self.name
+
 
 class Column(models.Model):
     name = models.CharField(max_length=255, blank=False, null=False)
@@ -30,6 +33,12 @@ class Column(models.Model):
                 name="Column name cannot occur twice in one list",
             ),
         ]
+
+    def __str__(self) -> str:
+        return self.name
+
+    def __repr__(self) -> str:
+        return self.__str__()
 
 
 class Row(models.Model):
@@ -58,13 +67,13 @@ class Row(models.Model):
             models.UniqueConstraint(
                 fields=["list", "previous_row"],
                 name="For any list, a row can only follow one or zero rows. "
-                "A null row can be followed by exactlly one row, per list.",
+                "A null row can be followed by exactly one row, per list.",
                 condition=models.Q(previous_row__isnull=True),
             ),
             models.UniqueConstraint(
                 fields=["list", "next_row"],
                 name="For any list, a row can only precede one or zero rows. "
-                "A null row can be preceded by exactlly one row, per list.",
+                "A null row can be preceded by exactly one row, per list.",
                 condition=models.Q(next_row__isnull=True),
             ),
         ]
