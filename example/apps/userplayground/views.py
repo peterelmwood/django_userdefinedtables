@@ -1,4 +1,4 @@
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views import generic
 from django.views.decorators.csrf import csrf_protect
 
@@ -18,10 +18,11 @@ class ListsView(generic.ListView):
 def add_table(request):
     if request.method == "GET":
         form = AddTableForm()
+        return render(request, "add_table.html", context={"form": form})
     else:
         form = AddTableForm(request.POST)
         form.save()
-    return render(request, "add_table.html", context={"form": form})
+        return redirect("playground")
 
 
 @csrf_protect
