@@ -2,6 +2,8 @@ import os
 
 from setuptools import find_packages, setup
 
+from userdefinedtables import VERSION
+
 
 def long_desc(root_path):
     FILES = ["README.md"]
@@ -18,7 +20,7 @@ long_description = "\n\n".join(long_desc(HERE))
 
 setup(
     name="django_userdefinedtables",
-    use_scm_version={"version_scheme": "post-release"},
+    version=VERSION,
     setup_requires=["setuptools_scm"],
     license="MIT",
     description="Generic EAV-style table creation in the user's hands",
@@ -31,10 +33,10 @@ setup(
     packages=find_packages(exclude=["tests*"]),
     install_requires=["Django>=2.2", "Pillow"],
     classifiers=[
-        "Development Status :: 1 - pLANNING",
+        "Development Status :: 3 - Alpha",
         "Environment :: Web Environment",
         "Intended Audience :: Developers",
-        "License :: OSI Approved :: mit License",
+        "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
