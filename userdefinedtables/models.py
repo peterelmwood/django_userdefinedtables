@@ -4,7 +4,7 @@ from typing import List as TypedList
 from django.db import models
 from django.db.models.functions import Length
 
-import settings
+from userdefinedtables.settings import USER_DEFINED_TABLES_DECIMAL_FIELD_KWARGS
 
 
 class List(models.Model):
@@ -165,8 +165,8 @@ class ChoiceEntry(Entry):
 
 
 class NumericalColumn(models.Model):
-    minimum = models.DecimalField(null=True, default=None, **settings.USER_DEFINED_TABLES_DECIMAL_FIELD_KWARGS)
-    maximum = models.DecimalField(null=True, default=None, **settings.USER_DEFINED_TABLES_DECIMAL_FIELD_KWARGS)
+    minimum = models.DecimalField(null=True, default=None, **USER_DEFINED_TABLES_DECIMAL_FIELD_KWARGS)
+    maximum = models.DecimalField(null=True, default=None, **USER_DEFINED_TABLES_DECIMAL_FIELD_KWARGS)
 
     class Meta:
         abstract = True
@@ -199,7 +199,7 @@ class NumberColumn(NumericalColumn, Column):
 
 
 class NumberEntry(Entry):
-    value = models.DecimalField(**settings.USER_DEFINED_TABLES_DECIMAL_FIELD_KWARGS)
+    value = models.DecimalField(**USER_DEFINED_TABLES_DECIMAL_FIELD_KWARGS)
     column = models.ForeignKey(
         "userdefinedtables.numbercolumn",
         null=False,
@@ -218,7 +218,7 @@ class CurrencyColumn(NumericalColumn, Column):
 
 
 class CurrencyEntry(Entry):
-    value = models.DecimalField(**settings.USER_DEFINED_TABLES_DECIMAL_FIELD_KWARGS)
+    value = models.DecimalField(**USER_DEFINED_TABLES_DECIMAL_FIELD_KWARGS)
     column = models.ForeignKey(
         "userdefinedtables.currencycolumn",
         null=False,

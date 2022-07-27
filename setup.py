@@ -29,7 +29,7 @@ setup(
     maintainer="Peter Wood",
     url="https://github.com/peterelmwood/django_userdefinedtables",
     packages=find_packages(exclude=["tests*"]),
-    install_requires=["Django>=2.2"],
+    install_requires=["Django>=2.2", "Pillow"],
     classifiers=[
         "Development Status :: 1 - pLANNING",
         "Environment :: Web Environment",
