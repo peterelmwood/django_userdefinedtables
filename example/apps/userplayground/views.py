@@ -3,7 +3,7 @@ from django.views import generic
 from django.views.decorators.csrf import csrf_protect
 
 from example.apps.userplayground.forms import AddColumnForm, AddTableForm
-from userdefinedtables.models import List
+from userdefinedtables.models import COLUMN_TYPES, List
 
 
 class ListsView(generic.ListView):
@@ -32,7 +32,11 @@ def add_column(request, list_pk=None):
     columns = my_list.columns.all()
 
     if request.method == "GET":
-        form = AddColumnForm()
+        form = AddColumnForm(initial={COLUMN_TYPES[0]._meta.object_name: "Yes"})
     else:
         form = AddColumnForm(request.POST)
+        if form.is_valid():
+            column = form.save(commit=False)
+            column.list = my_list
+            column.save()
     return render(request, "add_column.html", context={"form": form, "columns": columns})
