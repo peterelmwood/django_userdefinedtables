@@ -3,16 +3,13 @@ name: Publish Python 🐍 distributions 📦 to TestPyPI
 on:
   push:
 
-
-
 jobs:
-  build-n-publish:
-    name: Build and publish Python 🐍 distributions 📦 to TestPyPI
+  test-django_userdefinedtables:
+    name: Test django_userdefinedtables project
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ["3.7", "3.8", "3.9", "3.10"]
-
     steps:
       - uses: actions/checkout@v3
 
@@ -34,6 +31,13 @@ jobs:
       - name: Run Django tests
         run: |
           python manage.py test
+
+  build-n-publish:
+    name: Build and publish Python 🐍 distributions 📦 to TestPyPI
+    runs-on: ubuntu-latest
+    needs: test-django_userdefinedtables
+    steps:
+      - uses: actions/checkout@v3
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
