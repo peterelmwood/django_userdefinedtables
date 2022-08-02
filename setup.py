@@ -31,7 +31,7 @@ setup(
     maintainer="Peter Wood",
     url="https://github.com/peterelmwood/django_userdefinedtables",
     packages=find_packages(exclude=["tests*"]),
-    install_requires=["Django>=2.2", "Pillow"],
+    install_requires=["Django>=2.2", "Pillow", "django-bootstrap-v5"],
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Environment :: Web Environment",
