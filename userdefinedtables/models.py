@@ -1,9 +1,10 @@
 from datetime import datetime
 from typing import List as TypedList
 
-from django.db import models, transaction
+from django.db import models
 from django.db.models.functions import Length
 
+from userdefinedtables.model_mixins import OrderableMixin
 from userdefinedtables.settings import USER_DEFINED_TABLES_DECIMAL_FIELD_KWARGS
 
 
@@ -14,7 +15,7 @@ class List(models.Model):
         return self.name
 
 
-class Column(models.Model):
+class Column(OrderableMixin, models.Model):
     name = models.CharField(max_length=255, blank=False, null=False)
     description = models.TextField(blank=True)
     required = models.BooleanField(default=False)
@@ -25,12 +26,18 @@ class Column(models.Model):
         on_delete=models.CASCADE,
         related_name="columns",
     )
+    index = models.PositiveBigIntegerField()
 
     class Meta:
         constraints: TypedList = [
             models.UniqueConstraint(
                 fields=["name", "list"],
-                name="Column name cannot occur twice in one list",
+                name="Column name cannot occur twice in one list.",
+            ),
+            models.UniqueConstraint(
+                fields=["list", "index"],
+                name="Two Columns cannot occupy the same index.",
+                deferrable=models.Deferrable.DEFERRED,
             ),
         ]
 
@@ -48,7 +55,7 @@ class Column(models.Model):
         return None
 
 
-class Row(models.Model):
+class Row(OrderableMixin, models.Model):
     list = models.ForeignKey(
         "userdefinedtables.list",
         on_delete=models.CASCADE,
@@ -67,39 +74,6 @@ class Row(models.Model):
             ),
         ]
 
-    def insert_at(self, index):
-        assert not self._state.adding, "Insertions on new items are done implicitly. This method is the approach to use"
-        " when an item already exists and is meant to be inserted in another location."
-
-        # in the trivial case, we do not actually need to move things around, so we return
-        if self.index == index:
-            return
-
-        with transaction.atomic():
-            # in either of the other cases, we need to move things around, and so wrap either move in a transaction
-            if self.index < index:
-                Row.objects.filter(index__gt=self.index, index__lte=index).update(index=models.F("index") - 1)
-            else:
-                Row.objects.filter(index__lt=self.index, index__gte=index).update(index=models.F("index") + 1)
-            self.index = index
-            self.save()
-
-    def save(self):
-        if self._state.adding:
-            # if there are no rows indexed above this one, this will perform no changes, but will still make a db query
-            Row.objects.filter(list=self.list, index__gte=self.index).update(index=models.F("index") + 1)
-        # in a situation where we are not adding a row, we will need to handle the change directly using
-        # `self.insert_at`
-        super().save()
-
-    def delete(self):
-        index = self.index
-        list = self.list
-        super().delete()
-        higher_rows = Row.objects.filter(list=list, index__gte=index)
-        if higher_rows.exists():
-            higher_rows.update(index=models.F("index") - 1)
-
 
 class Entry(models.Model):
     row = models.ForeignKey(
@@ -116,7 +90,9 @@ class SingleLineOfTextColumn(Column):
 
     class Meta:
         constraints = [
-            models.CheckConstraint(check=models.Q(maximum_length__lte=255), name="maximum_length cannot exceed 255"),
+            models.CheckConstraint(
+                check=models.Q(maximum_length__lte=255), name="maximum_length field value cannot exceed 255."
+            ),
         ]
 
     def save(self, *args, **kwargs) -> None:

@@ -3,13 +3,17 @@ from django.test import TestCase
 
 from model_bakery import baker
 
+from userdefinedtables.tests.test_orderable_mixin import OrderableMixinTestSuite
 
-class ColumnTestCase(TestCase):
+
+class ColumnTestCase(OrderableMixinTestSuite.OrderableMixinTestCase):
+    orderable_model = "userdefinedtables.column"
+
     def test__list_cannot_have_two_identically_named_columns(self):
         # ASSIGN
         list_1 = baker.make("userdefinedtables.list")
         column_1 = baker.make(
-            "userdefinedtables.column",
+            self.orderable_model,
             list=list_1,
             name="duplicate",
         )
@@ -17,4 +21,4 @@ class ColumnTestCase(TestCase):
         # ACT
         # ASSERT
         with self.assertRaises(IntegrityError):
-            baker.make("userdefinedtables.column", list=list_1, name=column_1.name)
+            baker.make(self.orderable_model, list=list_1, name=column_1.name)
