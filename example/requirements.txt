@@ -1,5 +1,8 @@
 django
-Pillow
 
 # styling
 django-bootstrap-v5
+
+# dev tools
+django_extensions
+Pillow

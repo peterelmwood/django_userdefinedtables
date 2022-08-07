@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "example.apps.userplayground",
     # third party
     "bootstrap5",
+    "django_extensions",
 ]
 
 MIDDLEWARE = [
