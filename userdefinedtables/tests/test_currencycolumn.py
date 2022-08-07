@@ -12,14 +12,12 @@ from django.test import TestCase
 
 # local django
 
-
 # thirdparty
 from model_bakery import baker
 
 
 class CurrencyColumnTestCase(TestCase):
     def setUp(self):
-        super().setUp()
         self.currency_column = baker.make("userdefinedtables.currencycolumn", maximum=10, minimum=1)
 
     def test__currencycolumn_minimum_cannot_be_more_than_maximum(self):
