@@ -2,6 +2,7 @@
 Django settings for django_userdefinedtables project.
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -71,10 +72,11 @@ TEMPLATES = [
 # Database
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
 
+# make sure to get ownership of the directory you point to
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": "/opt/udt_example",
+        "NAME": os.environ.get("UDT_DEMO_DB", "udt_example")
     }
 }
 
