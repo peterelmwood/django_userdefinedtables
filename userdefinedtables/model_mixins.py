@@ -10,6 +10,7 @@ Defines mixins for common model behaviors.
 
 # local django
 from django.db import models, transaction
+from django.db.models.aggregates import Max
 
 # thirdparty
 
@@ -38,11 +39,26 @@ class OrderableMixin:
 
     def save(self):
         if self._state.adding:
+            # if the index has not been provided, get the highest existing
+            self.index = self._get_index()
             # if there are no items indexed above this one, this will perform no changes, but will still make a db query
             self.__class__.objects.filter(list=self.list, index__gte=self.index).update(index=models.F("index") + 1)
         # in a situation where we are not adding an item, we will need to handle the change directly using
         # `self.insert_at`
         super().save()
+
+    def _get_index(self):
+        # if this has an assigned index, we place it there
+        if self.index:
+            return self.index
+
+        # if this doesn't have an assigned index, we want to place this last in line
+        max_index = self.__class__.objects.filter(list=self.list).aggregate(max_index=Max("index"))["max_index"]
+        if max_index is not None:
+            return max_index + 1
+
+        # if there is no max_index, this is the first of its kind (per this list)
+        return 1
 
     def delete(self):
         index = self.index
