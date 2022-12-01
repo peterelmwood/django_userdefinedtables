@@ -15,6 +15,6 @@ This is the markdown todo file for the django_userdefinedtables app.
 - [x] Publish project on GitHub
       http://github.com/peterelmwood/django_userdefinedtables
 - [x] Complete initial model-set
-- [x] Create and tune Setup.cfg/setup.py
+- [x] Create and tune setup.cfg/setup.py
 - [x] Setup GitHub Actions
 - [x] Write tests

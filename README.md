@@ -47,5 +47,8 @@ Generally, these entries are self-explanatory, given an understanding of the Dat
 - *LookupColumnEntry*
 - *URLColumnEntry*
 
+## Example
+Please see the [example page](./example/README.md) to see how this package can be used.
+
 ## Active Development & Contribution
 This project is still in a nascent stage and is volatile to a degree. Contribution by other members of the community is welcome, whether in the form of pull requests or ideas.
