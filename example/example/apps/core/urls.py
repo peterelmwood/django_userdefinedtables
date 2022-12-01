@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.urls import include, path
 
-from example.views import home
+from example.apps.core.views import home
 
 
 urlpatterns = [

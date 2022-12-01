@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     # this app
     "userdefinedtables",
     # example apps
+    "example.apps.core",
     "example.apps.userplayground",
     # third party
     "bootstrap5",
@@ -48,7 +49,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "example.urls"
+ROOT_URLCONF = "example.apps.core.urls"
 
 TEMPLATES = [
     {
@@ -72,12 +73,7 @@ TEMPLATES = [
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
 
 # make sure to get ownership of the directory you point to
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": os.environ.get("UDT_DEMO_DB", "udt_example")
-    }
-}
+DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": os.environ.get("UDT_DEMO_DB", "udt_example")}}
 
 
 # Password validation
@@ -115,6 +111,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.0/howto/static-files/
 
 STATIC_URL = "static/"
+STATIC_ROOT = "static"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.0/ref/settings/#default-auto-field
