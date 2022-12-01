@@ -11,4 +11,3 @@ docker run -p 8001:8000 django_userdefinedtables
 ```
 
 After the build is complete and the app is running, navigate to http://localhost:8001 in a browser window.
-You should see a
