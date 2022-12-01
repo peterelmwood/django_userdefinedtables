@@ -73,7 +73,16 @@ TEMPLATES = [
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
 
 # make sure to get ownership of the directory you point to
-DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": os.environ.get("UDT_DEMO_DB", "udt_example")}}
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ.get("POSTGRES_NAME"),
+        "USER": os.environ.get("POSTGRES_USER"),
+        "PASSWORD": os.environ.get("POSTGRES_PASSWORD"),
+        "HOST": "db",
+        "PORT": 5432,
+    }
+}
 
 
 # Password validation

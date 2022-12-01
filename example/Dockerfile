@@ -18,11 +18,8 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /code
 
 COPY --from=base /opt/venv /opt/venv
-COPY . .
+COPY ./entrypoint.sh ./entrypoint.sh
 
 ENV PATH=/opt/venv/bin:$PATH
 
-RUN python manage.py migrate
-
-EXPOSE 8000
-ENTRYPOINT [ "python", "manage.py", "runserver", "0.0.0.0:8000" ]
+ENTRYPOINT [ "./entrypoint.sh" ]

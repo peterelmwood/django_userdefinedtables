@@ -8,3 +8,6 @@ django-bootstrap-v5
 
 # dev tools
 Pillow
+
+# db
+psycopg2-binary
