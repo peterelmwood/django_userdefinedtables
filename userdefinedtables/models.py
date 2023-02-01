@@ -291,11 +291,6 @@ class LookupColumn(Column):
         on_delete=models.CASCADE,
     )
 
-    def save(self, *args, **kwargs):
-        if self.lookup_column.list != self.list:
-            raise ValueError("Column must be a member of List.")
-        self.save(*args, **kwargs)
-
 
 class LookupColumnEntry(Entry):
     value = models.ForeignKey(
