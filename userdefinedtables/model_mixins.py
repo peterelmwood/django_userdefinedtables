@@ -37,7 +37,7 @@ class OrderableMixin:
             self.index = index
             self.save()
 
-    def save(self):
+    def save(self, *args, **kwargs):
         if self._state.adding:
             # if the index has not been provided, get the highest existing
             self.index = self._get_index()
@@ -45,7 +45,7 @@ class OrderableMixin:
             self.__class__.objects.filter(list=self.list, index__gte=self.index).update(index=models.F("index") + 1)
         # in a situation where we are not adding an item, we will need to handle the change directly using
         # `self.insert_at`
-        super().save()
+        super().save(*args, **kwargs)
 
     def _get_index(self):
         # if this has an assigned index, we place it there
