@@ -199,7 +199,9 @@ class NumberEntry(Entry):
     )
 
     def save(self, *args, **kwargs):
-        if self.column.minimum > self.value or self.column.maximum < self.value:
+        if (self.column.minimum is not None and self.column.minimum > self.value) or (
+            self.column.maximum is not None and self.column.maximum < self.value
+        ):
             raise ValueError(f"NumberEntry.value must be between {self.column.minimum} and {self.column.maximum}")
         super().save(*args, **kwargs)
 
@@ -218,8 +220,10 @@ class CurrencyEntry(Entry):
     )
 
     def save(self, *args, **kwargs):
-        if self.column.minimum > self.value or self.column.maximum < self.value:
-            raise ValueError(f"NumberEntry.value must be between {self.column.minimum} and {self.column.maximum}")
+        if (self.column.minimum is not None and self.column.minimum > self.value) or (
+            self.column.maximum is not None and self.column.maximum < self.value
+        ):
+            raise ValueError(f"CurrencyEntry.value must be between {self.column.minimum} and {self.column.maximum}")
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:
@@ -244,7 +248,9 @@ class DateTimeColumnEntry(Entry):
     )
 
     def save(self, *args, **kwargs):
-        if self.value > self.column.latest_date or self.value < self.column.earliest_date:
+        if (self.column.earliest_date is not None and self.column.earliest_date > self.value) or (
+            self.column.latest_date is not None and self.column.latest_date < self.value
+        ):
             raise ValueError(f"Date value must be between {self.column.earliest_date} and {self.column.latest_date}.")
         super().save(*args, **kwargs)
 
