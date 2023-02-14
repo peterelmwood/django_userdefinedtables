@@ -312,9 +312,6 @@ class LookupColumnEntry(Entry):
         on_delete=models.CASCADE,
     )
 
-    def __str__(self) -> str:
-        return f"{self.value.value}"
-
 
 class URLColumn(Column):
     pass
