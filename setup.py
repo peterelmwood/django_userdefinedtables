@@ -30,6 +30,12 @@ setup(
     author_email="peterelmwood@gmail.com",
     maintainer="Peter Wood",
     url="https://github.com/peterelmwood/django_userdefinedtables",
+    project_urls={
+        "Bug Tracker": "https://github.com/peterelmwood/django_userdefinedtables/issues",
+        "Documentation": "https://github.com/peterelmwood/django_userdefinedtables#readme",
+        "Source Code": "https://github.com/peterelmwood/django_userdefinedtables",
+        "Changelog": "https://github.com/peterelmwood/django_userdefinedtables/blob/main/CHANGELOG.md",
+    },
     packages=find_packages(exclude=["tests*"]),
     install_requires=["Django>=3.2", "Pillow"],
     classifiers=[

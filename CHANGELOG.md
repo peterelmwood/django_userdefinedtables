@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated Django version support: minimum version is now Django 3.2 LTS, added support for Django 4.1 and 4.2
 - Improved code quality with consistent formatting
 - Updated GitHub Actions workflows to test on Python 3.12 and use proper test settings
+- Enhanced package metadata with project URLs and better configuration
+- Improved package initialization with docstring and better exports
+- Added verbose name to AppConfig for better admin display
 
 ### Added
 - CHANGELOG.md to track project changes
@@ -21,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Proper test settings configuration for easier development
 - Improved README with better value proposition, key features, and clearer installation instructions
 - Enhanced example README with comprehensive setup instructions
+- Flake8 configuration in setup.cfg
+- Build system configuration in pyproject.toml
+- isort configuration with first-party package recognition
 
 ## [0.0.14] - 2022
 
