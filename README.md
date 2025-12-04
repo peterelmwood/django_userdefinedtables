@@ -57,7 +57,7 @@ The models which are available for use are:
 - *NumberColumn*: A column which allows for entry of a decimal number. Supported by _NumericalColumn_ abstract model, which Utilizes Django _DecimalField_.
 - *CurrencyColumn*: defines a currency field with $ formatting. Otherwise identical to *NumberColumn*.
 - *DateTimeColumn*: defines a datetime field. Corresponding value utilizes Django _DateTimeField_.
-- *BinaryColumnEntry*: defines a binary field. Corresponding value utilizes Django _BooleanField_.
+- *BinaryColumn*: defines a binary field. Corresponding value utilizes Django _BooleanField_.
 - *PictureColumn*: defines a picture field. Corresponding value utilizes Django _ImageField_.
 - *LookupColumn*: defines a way for end users to specify a reference to a value in another column. Utilizes several foreign key relationships.
 - *URLColumn*: defines a url field. Corresponding value utilizes  Django _URLField_.
@@ -75,7 +75,23 @@ Generally, these entries are self-explanatory, given an understanding of the Dat
 - *URLColumnEntry*
 
 ## Example
-Please see the [example page](./example/README.md) to see how this package can be used.
 
-## Active Development & Contribution
-This project is still in a nascent stage and is volatile to a degree. Contribution by other members of the community is welcome, whether in the form of pull requests or ideas.
+Please see the [example page](./example/README.md) to see a complete working application demonstrating this package's features.
+
+## Contributing
+
+This project is under active development and welcomes contributions from the community! Whether you want to:
+- Report bugs or request features
+- Improve documentation
+- Submit pull requests with bug fixes or new features
+- Share ideas for improvements
+
+Please see our [Contributing Guide](./CONTRIBUTING.md) for details on how to get started.
+
+## Changelog
+
+See [CHANGELOG.md](./CHANGELOG.md) for a detailed history of changes to this project.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
