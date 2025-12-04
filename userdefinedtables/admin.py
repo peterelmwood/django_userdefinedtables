@@ -1,6 +1,19 @@
 from django.contrib import admin
 
-from userdefinedtables.models import *
+from userdefinedtables.models import (
+    BinaryColumn,
+    ChoiceColumn,
+    Column,
+    CurrencyColumn,
+    DateTimeColumn,
+    List,
+    LookupColumn,
+    MultipleLineTextColumn,
+    NumberColumn,
+    PictureColumn,
+    SingleLineOfTextColumn,
+    URLColumn,
+)
 
 
 @admin.register(List)
