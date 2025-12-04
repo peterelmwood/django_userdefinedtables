@@ -29,8 +29,6 @@ docker run -p 8001:8000 \
   django_userdefinedtables
 ```
 
-Note: You'll also need to update `settings.py` to use the `POSTGRES_HOST` environment variable instead of the hardcoded "db" hostname.
-
 ## Without Docker
 To run locally without Docker:
 
