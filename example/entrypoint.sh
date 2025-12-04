@@ -6,19 +6,27 @@ MAX_RETRIES=30
 RETRY_COUNT=0
 
 # Use a small Python script to check database connection without exposing credentials in process list
-until python << END
+until python << 'END'
 import psycopg2
 import os
+import sys
+
 try:
-    psycopg2.connect(
+    conn = psycopg2.connect(
         host=os.environ.get('POSTGRES_HOST', 'db'),
         user=os.environ.get('POSTGRES_USER'),
         password=os.environ.get('POSTGRES_PASSWORD'),
         dbname=os.environ.get('POSTGRES_NAME')
     )
-    exit(0)
-except Exception:
-    exit(1)
+    conn.close()
+    sys.exit(0)
+except psycopg2.OperationalError as e:
+    # Expected error when database is not ready yet
+    sys.exit(1)
+except Exception as e:
+    # Unexpected error - log it
+    print(f"Unexpected error connecting to database: {e}", file=sys.stderr)
+    sys.exit(1)
 END
 do
   RETRY_COUNT=$((RETRY_COUNT + 1))
