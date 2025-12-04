@@ -5,10 +5,25 @@ echo "Waiting for database..."
 MAX_RETRIES=30
 RETRY_COUNT=0
 
-until python -c "import psycopg2; psycopg2.connect(host='${POSTGRES_HOST:-db}', user='$POSTGRES_USER', password='$POSTGRES_PASSWORD', dbname='$POSTGRES_NAME')" 2>/dev/null; do
+# Use a small Python script to check database connection without exposing credentials in process list
+until python << END
+import psycopg2
+import os
+try:
+    psycopg2.connect(
+        host=os.environ.get('POSTGRES_HOST', 'db'),
+        user=os.environ.get('POSTGRES_USER'),
+        password=os.environ.get('POSTGRES_PASSWORD'),
+        dbname=os.environ.get('POSTGRES_NAME')
+    )
+    exit(0)
+except Exception:
+    exit(1)
+END
+do
   RETRY_COUNT=$((RETRY_COUNT + 1))
   if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
-    echo "Database did not become ready in time. Exiting."
+    echo "Database did not become ready after $MAX_RETRIES seconds. Exiting."
     exit 1
   fi
   echo "Database not ready yet, retrying... ($RETRY_COUNT/$MAX_RETRIES)"
