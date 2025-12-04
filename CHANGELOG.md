@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved package initialization with docstring and better exports
 - Added verbose name to AppConfig for better admin display
 
+### Removed
+- Deprecated `default_app_config` attribute (removed in Django 5.0, no longer needed with Django 3.2+)
+
 ### Added
 - CHANGELOG.md to track project changes
 - CONTRIBUTING.md with development guidelines and contribution instructions

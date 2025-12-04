@@ -8,8 +8,6 @@ __version__ = "0.0.14"
 
 VERSION = __version__
 
-default_app_config = "userdefinedtables.apps.UserdefinedtablesConfig"
-
 # Public API
 __all__ = [
     "__version__",
