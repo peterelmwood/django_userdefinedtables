@@ -1,5 +1,12 @@
 #!/bin/bash
 
+# Validate required environment variables
+if [ -z "$POSTGRES_NAME" ] || [ -z "$POSTGRES_USER" ] || [ -z "$POSTGRES_PASSWORD" ]; then
+    echo "Error: Required environment variables are not set."
+    echo "Please set POSTGRES_NAME, POSTGRES_USER, and POSTGRES_PASSWORD."
+    exit 1
+fi
+
 # Wait for database to be ready
 echo "Waiting for database..."
 MAX_RETRIES=30
