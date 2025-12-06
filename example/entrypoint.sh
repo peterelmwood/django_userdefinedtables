@@ -13,7 +13,7 @@ MAX_RETRIES=30
 RETRY_COUNT=0
 
 # Use a small Python script to check database connection without exposing credentials in process list
-until python << 'END'
+until python3 << 'END'
 import psycopg2
 import os
 import sys
