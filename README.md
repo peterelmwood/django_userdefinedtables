@@ -2,15 +2,42 @@
 ![Latest is on pypi](https://github.com/peterelmwood/django_userdefinedtables/actions/workflows/publish-to-pypi.yml/badge.svg)
 
 # django_userdefinedtables
-This application is intended to be used as a way for an end user to define their own database tables.
 
-It is loosely inspired by the way SharePoint lists work.
+A Django application that enables end users to dynamically create and manage their own database tables through a web interface. This package provides an Entity-Attribute-Value (EAV) style framework that allows users to define custom data structures without requiring code changes or database migrations.
+
+Loosely inspired by SharePoint lists, `django_userdefinedtables` gives your application the flexibility of user-defined schemas while maintaining the power and type safety of Django's ORM.
+
+## Key Features
+
+- **Dynamic table creation**: Users can create their own "Lists" (tables) without developer intervention
+- **Multiple column types**: Support for text, numbers, currency, dates, binary, images, URLs, choices, and lookups
+- **Type safety**: Each column type has validation and appropriate Django field types
+- **Easy integration**: Simple Django app that works with your existing models
+- **Admin interface**: Full Django admin integration out of the box
 
 ## Installation
-To install django_userdefinedtables, use the following command:
-``pip install django_userdefinedtables``
 
-`userdefinedtables` should then added to the `APPS` list in the Django settings.
+Install the package from PyPI:
+
+```bash
+pip install django_userdefinedtables
+```
+
+Add `userdefinedtables` to your `INSTALLED_APPS` in Django settings:
+
+```python
+INSTALLED_APPS = [
+    ...
+    'userdefinedtables',
+    ...
+]
+```
+
+Run migrations:
+
+```bash
+python manage.py migrate userdefinedtables
+```
 
 ## Use
 
@@ -28,9 +55,9 @@ The models which are available for use are:
 - *MultipleLineTextColumn*: longer length field. Corresponding value utilizes Django _TextField_.
 - *ChoiceColumn*: option among several user-defined choices. Supported by the *Choice* model, which captures the actual choices available.
 - *NumberColumn*: A column which allows for entry of a decimal number. Supported by _NumericalColumn_ abstract model, which Utilizes Django _DecimalField_.
-- *CurrencyColumn*: defines a currency field. Set apart from the *NumberColumn* in order to support formatting, but is otherwise identical. **NOTE: This is possibly unnecessarily redundant to NumberColumn and may be removed in the future.**
+- *CurrencyColumn*: defines a currency field with $ formatting. Otherwise identical to *NumberColumn*.
 - *DateTimeColumn*: defines a datetime field. Corresponding value utilizes Django _DateTimeField_.
-- *BinaryColumnEntry*: defines a binary field. Corresponding value utilizes Django _BooleanField_.
+- *BinaryColumn*: defines a binary field. Corresponding value utilizes Django _BooleanField_.
 - *PictureColumn*: defines a picture field. Corresponding value utilizes Django _ImageField_.
 - *LookupColumn*: defines a way for end users to specify a reference to a value in another column. Utilizes several foreign key relationships.
 - *URLColumn*: defines a url field. Corresponding value utilizes  Django _URLField_.
@@ -48,7 +75,23 @@ Generally, these entries are self-explanatory, given an understanding of the Dat
 - *URLColumnEntry*
 
 ## Example
-Please see the [example page](./example/README.md) to see how this package can be used.
 
-## Active Development & Contribution
-This project is still in a nascent stage and is volatile to a degree. Contribution by other members of the community is welcome, whether in the form of pull requests or ideas.
+Please see the [example page](./example/README.md) to see a complete working application demonstrating this package's features.
+
+## Contributing
+
+This project is under active development and welcomes contributions from the community! Whether you want to:
+- Report bugs or request features
+- Improve documentation
+- Submit pull requests with bug fixes or new features
+- Share ideas for improvements
+
+Please see our [Contributing Guide](./CONTRIBUTING.md) for details on how to get started.
+
+## Changelog
+
+See [CHANGELOG.md](./CHANGELOG.md) for a detailed history of changes to this project.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
