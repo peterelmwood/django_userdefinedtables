@@ -33,11 +33,11 @@ If you prefer to use Docker without Compose, you'll need to set up a PostgreSQL 
 ```bash
 cd example
 docker build -t django_userdefinedtables .
-docker run -p 8001:8000 \
-  -e POSTGRES_NAME=your_db_name \
-  -e POSTGRES_USER=your_db_user \
-  -e POSTGRES_PASSWORD=your_db_password \
-  -e POSTGRES_HOST=your_db_host \
+docker run --publish 8001:8000 \
+  --env POSTGRES_NAME=your_db_name \
+  --env POSTGRES_USER=your_db_user \
+  --env POSTGRES_PASSWORD=your_db_password \
+  --env POSTGRES_HOST=your_db_host \
   django_userdefinedtables
 ```
 

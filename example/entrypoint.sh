@@ -1,11 +1,9 @@
 #!/bin/bash
 
-# Validate required environment variables
-if [ -z "$POSTGRES_NAME" ] || [ -z "$POSTGRES_USER" ] || [ -z "$POSTGRES_PASSWORD" ]; then
-    echo "Error: Required environment variables are not set."
-    echo "Please set POSTGRES_NAME, POSTGRES_USER, and POSTGRES_PASSWORD."
-    exit 1
-fi
+# Validate required environment variables using parameter expansion
+: "${POSTGRES_NAME:?Error: POSTGRES_NAME environment variable is required}"
+: "${POSTGRES_USER:?Error: POSTGRES_USER environment variable is required}"
+: "${POSTGRES_PASSWORD:?Error: POSTGRES_PASSWORD environment variable is required}"
 
 # Wait for database to be ready
 echo "Waiting for database..."
@@ -33,20 +31,26 @@ except psycopg2.OperationalError as e:
 except Exception as e:
     # Unexpected error - log it
     print(f"Unexpected error connecting to database: {e}", file=sys.stderr)
-    sys.exit(1)
+    sys.exit(2)
 END
 do
-  RETRY_COUNT=$((RETRY_COUNT + 1))
-  if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
-    echo "Database did not become ready after $MAX_RETRIES seconds. Exiting."
-    exit 1
+  EXIT_CODE=$?
+  if [ $EXIT_CODE -eq 1 ]; then
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+    if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
+      echo "Database did not become ready after $MAX_RETRIES seconds. Exiting."
+      exit 1
+    fi
+    echo "Database not ready yet, retrying... ($RETRY_COUNT/$MAX_RETRIES)"
+    sleep 1
+  else
+    # For any non-transient error, exit immediately with the same code
+    exit $EXIT_CODE
   fi
-  echo "Database not ready yet, retrying... ($RETRY_COUNT/$MAX_RETRIES)"
-  sleep 1
 done
 
 echo "Database is ready!"
 
-python manage.py migrate
+python3 manage.py migrate
 
-python manage.py runserver 0.0.0.0:8000
+python3 manage.py runserver 0.0.0.0:8000
