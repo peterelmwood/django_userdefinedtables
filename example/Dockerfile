@@ -22,4 +22,4 @@ COPY . .
 
 ENV PATH=/opt/venv/bin:$PATH
 
-ENTRYPOINT [ "./entrypoint.sh" ]
+ENTRYPOINT [ "./entrypoint.py" ]
