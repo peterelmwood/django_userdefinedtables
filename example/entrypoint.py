@@ -6,6 +6,7 @@ Validates environment variables, waits for database readiness, and starts the ap
 import os
 import sys
 import time
+import subprocess
 import psycopg2
 from psycopg2 import OperationalError
 
@@ -62,17 +63,16 @@ def wait_for_database(max_retries=30):
 
 def run_migrations():
     """Run Django database migrations."""
-    import subprocess
     print("Running migrations...")
-    result = subprocess.run(['python3', 'manage.py', 'migrate'], check=False)
-    if result.returncode != 0:
+    try:
+        subprocess.run(['python3', 'manage.py', 'migrate'], check=True)
+    except subprocess.CalledProcessError:
         print("Failed to run migrations", file=sys.stderr)
         sys.exit(1)
 
 
 def start_server():
     """Start the Django development server."""
-    import subprocess
     print("Starting Django development server...")
     # Use exec to replace the Python process with the server process
     os.execvp('python3', ['python3', 'manage.py', 'runserver', '0.0.0.0:8000'])
