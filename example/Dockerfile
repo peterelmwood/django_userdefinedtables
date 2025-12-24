@@ -18,8 +18,8 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /code
 
 COPY --from=base /opt/venv /opt/venv
-COPY ./entrypoint.sh ./entrypoint.sh
+COPY . .
 
 ENV PATH=/opt/venv/bin:$PATH
 
-ENTRYPOINT [ "./entrypoint.sh" ]
+ENTRYPOINT [ "./entrypoint.py" ]
