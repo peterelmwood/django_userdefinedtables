@@ -62,7 +62,6 @@ class TypeMappingTestCase(TestCase):
             COLUMN_TO_ENTRY[SingleLineOfTextColumn],
             SingleLineOfTextColumnEntry
         )
-        
         # Entry to Column
         self.assertEqual(
             get_column_type_for_entry(SingleLineOfTextColumnEntry),

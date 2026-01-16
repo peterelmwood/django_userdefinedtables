@@ -2,7 +2,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views import generic
 from django.views.decorators.csrf import csrf_protect
 from django.contrib import messages
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.db import IntegrityError
 
 from example.apps.userplayground.forms import AddColumnForm, AddTableForm
 from userdefinedtables.models import COLUMN_TYPES, List, Row, get_entry_type_for_column
@@ -45,7 +46,6 @@ def add_table(request):
 def add_column(request, list_pk=None):
     my_list = get_object_or_404(List, pk=list_pk)
     columns = my_list.columns.all()
-
     if request.method == "GET":
         form = AddColumnForm(initial={COLUMN_TYPES[0]._meta.object_name: "Yes"})
     else:
@@ -142,7 +142,7 @@ def add_row(request, list_pk):
                             if entry_type._meta.model_name == 'binarycolumnentry':
                                 value = value.lower() in ['true', '1', 'yes', 'on']
                             entry_type.objects.create(row=row, column=column_type, value=value)
-                        except Exception as e:
+                        except (ValidationError, ValueError, IntegrityError) as e:
                             messages.error(request, f"Error saving {column.name}: {str(e)}")
         
         messages.success(request, "Row added successfully!")
