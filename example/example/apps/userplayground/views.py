@@ -141,11 +141,19 @@ def add_row(request, list_pk):
                     field_name = f"column_{column.pk}"
                     value = request.POST.get(field_name, '')
                     
+                    # Skip creating entries for empty optional binary fields
+                    # to distinguish between "unset" and "False"
+                    if entry_type._meta.model_name == 'binarycolumnentry':
+                        if not value:
+                            # Skip if empty and optional, or raise error if required
+                            if column.required:
+                                messages.error(request, f"Error saving {column.name}: This field is required.")
+                            continue
+                        # Convert to boolean for non-empty values
+                        value = value.lower() in ['true', '1', 'yes', 'on']
+                    
                     if value or not column.required:
                         try:
-                            # Handle different entry types
-                            if entry_type._meta.model_name == 'binarycolumnentry':
-                                value = value.lower() in ['true', '1', 'yes', 'on']
                             entry_type.objects.create(row=row, column=column_type, value=value)
                         except Exception as e:
                             messages.error(request, f"Error saving {column.name}: {str(e)}")
