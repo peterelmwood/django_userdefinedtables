@@ -7,6 +7,16 @@ from example.apps.userplayground.forms import AddColumnForm, AddTableForm
 from userdefinedtables.models import COLUMN_TYPES, ENTRY_TYPES, List, Row
 
 
+def get_column_type_instance(column):
+    """Get the specific column type instance for a column."""
+    for col_type in COLUMN_TYPES:
+        try:
+            return getattr(column, col_type._meta.model_name)
+        except:
+            continue
+    return None
+
+
 class ListsView(generic.ListView):
     template_name = "user_playground_home.html"
     context_object_name = "lists"
@@ -66,13 +76,9 @@ def list_detail(request, list_pk):
     for row in rows:
         row_data = {'row': row, 'entries': []}
         for column in columns:
-            # Get the specific column type
-            column_type = None
+            # Get the specific column type instance
+            column_type = get_column_type_instance(column)
             entry = None
-            for col_type in COLUMN_TYPES:
-                if hasattr(column, col_type._meta.model_name):
-                    column_type = getattr(column, col_type._meta.model_name)
-                    break
             
             # Get the entry for this row and column
             if column_type:
@@ -108,12 +114,8 @@ def add_row(request, list_pk):
         
         # Save entries for each column
         for column in columns:
-            # Get the specific column type
-            column_type = None
-            for col_type in COLUMN_TYPES:
-                if hasattr(column, col_type._meta.model_name):
-                    column_type = getattr(column, col_type._meta.model_name)
-                    break
+            # Get the specific column type instance
+            column_type = get_column_type_instance(column)
             
             if column_type:
                 # Find corresponding entry type
