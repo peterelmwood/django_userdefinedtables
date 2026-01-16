@@ -141,22 +141,27 @@ def add_row(request, list_pk):
                     field_name = f"column_{column.pk}"
                     value = request.POST.get(field_name, '')
                     
-                    # Skip creating entries for empty optional binary fields
-                    # to distinguish between "unset" and "False"
+                    # Special handling for binary columns to distinguish "unset" from "False"
                     if entry_type._meta.model_name == 'binarycolumnentry':
                         if not value:
-                            # Skip if empty and optional, or raise error if required
+                            # Empty value: skip entry creation for optional, error for required
                             if column.required:
                                 messages.error(request, f"Error saving {column.name}: This field is required.")
                             continue
-                        # Convert to boolean for non-empty values
+                        # Non-empty value: convert to boolean
                         value = value.lower() in ['true', '1', 'yes', 'on']
-                    
-                    if value or not column.required:
+                        # Always create entry for binary columns with non-empty values
                         try:
                             entry_type.objects.create(row=row, column=column_type, value=value)
                         except Exception as e:
                             messages.error(request, f"Error saving {column.name}: {str(e)}")
+                    else:
+                        # For non-binary columns, create entry if value exists or column is optional
+                        if value or not column.required:
+                            try:
+                                entry_type.objects.create(row=row, column=column_type, value=value)
+                            except Exception as e:
+                                messages.error(request, f"Error saving {column.name}: {str(e)}")
         
         messages.success(request, "Row added successfully!")
         return redirect("list_detail", list_pk=list_pk)
