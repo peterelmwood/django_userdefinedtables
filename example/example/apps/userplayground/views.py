@@ -48,8 +48,17 @@ def add_column(request, list_pk=None):
     else:
         form = AddColumnForm(request.POST)
         if form.is_valid():
-            column = form.save(commit=False)
-            column.list = my_list
+            # Get the column type from cleaned data
+            column_type_class = form.cleaned_data.get("column")
+            
+            # Create an instance of the specific column type
+            column = column_type_class(
+                name=form.cleaned_data.get("name"),
+                description=form.cleaned_data.get("description", ""),
+                required=form.cleaned_data.get("required", False),
+                unique=form.cleaned_data.get("unique", False),
+                list=my_list
+            )
             column.save()
             messages.success(request, f"Column '{column.name}' added successfully!")
             return redirect("add_column", list_pk=list_pk)
@@ -141,9 +150,19 @@ def add_row(request, list_pk):
         messages.success(request, "Row added successfully!")
         return redirect("list_detail", list_pk=list_pk)
     
+    # Prepare columns with their type information for the template
+    columns_with_types = []
+    for column in columns:
+        column_type = get_column_type_instance(column)
+        type_name = column_type.__class__.__name__ if column_type else "Unknown"
+        columns_with_types.append({
+            'column': column,
+            'type_name': type_name,
+        })
+    
     context = {
         'list': my_list,
-        'columns': columns,
+        'columns_with_types': columns_with_types,
     }
     return render(request, "add_row.html", context=context)
 
