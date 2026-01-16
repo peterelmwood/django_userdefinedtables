@@ -11,7 +11,7 @@
         </a>
     </div>
 
-    {% if not columns %}
+    {% if not columns_with_types %}
         <div class="alert alert-warning">
             <strong>No columns defined!</strong> 
             <a href="{% url 'add_column' list.pk %}">Add columns</a> to this table first before adding data.
@@ -22,35 +22,35 @@
             
             <div class="card">
                 <div class="card-body">
-                    {% for column in columns %}
+                    {% for col_info in columns_with_types %}
                         <div class="mb-3">
-                            <label for="column_{{ column.pk }}" class="form-label">
-                                <strong>{{ column.name }}</strong>
-                                {% if column.required %}<span class="text-danger">*</span>{% endif %}
+                            <label for="column_{{ col_info.column.pk }}" class="form-label">
+                                <strong>{{ col_info.column.name }}</strong>
+                                {% if col_info.column.required %}<span class="text-danger">*</span>{% endif %}
                                 <br>
-                                <small class="text-muted">Type: {{ column.type }}</small>
-                                {% if column.description %}
+                                <small class="text-muted">Type: {{ col_info.type_name }}</small>
+                                {% if col_info.column.description %}
                                     <br>
-                                    <small class="text-muted">{{ column.description }}</small>
+                                    <small class="text-muted">{{ col_info.column.description }}</small>
                                 {% endif %}
                             </label>
                             
-                            {% if column.type == "BinaryColumn" %}
-                                <select name="column_{{ column.pk }}" id="column_{{ column.pk }}" class="form-select" {% if column.required %}required{% endif %}>
+                            {% if col_info.type_name == "BinaryColumn" %}
+                                <select name="column_{{ col_info.column.pk }}" id="column_{{ col_info.column.pk }}" class="form-select" {% if col_info.column.required %}required{% endif %}>
                                     <option value="">-- Select --</option>
                                     <option value="true">Yes</option>
                                     <option value="false">No</option>
                                 </select>
-                            {% elif column.type == "MultipleLineTextColumn" %}
-                                <textarea name="column_{{ column.pk }}" id="column_{{ column.pk }}" class="form-control" rows="3" {% if column.required %}required{% endif %}></textarea>
-                            {% elif column.type == "DateTimeColumn" %}
-                                <input type="datetime-local" name="column_{{ column.pk }}" id="column_{{ column.pk }}" class="form-control" {% if column.required %}required{% endif %}>
-                            {% elif column.type == "NumberColumn" or column.type == "CurrencyColumn" %}
-                                <input type="number" step="0.01" name="column_{{ column.pk }}" id="column_{{ column.pk }}" class="form-control" {% if column.required %}required{% endif %}>
-                            {% elif column.type == "URLColumn" %}
-                                <input type="url" name="column_{{ column.pk }}" id="column_{{ column.pk }}" class="form-control" {% if column.required %}required{% endif %}>
+                            {% elif col_info.type_name == "MultipleLineTextColumn" %}
+                                <textarea name="column_{{ col_info.column.pk }}" id="column_{{ col_info.column.pk }}" class="form-control" rows="3" {% if col_info.column.required %}required{% endif %}></textarea>
+                            {% elif col_info.type_name == "DateTimeColumn" %}
+                                <input type="datetime-local" name="column_{{ col_info.column.pk }}" id="column_{{ col_info.column.pk }}" class="form-control" {% if col_info.column.required %}required{% endif %}>
+                            {% elif col_info.type_name == "NumberColumn" or col_info.type_name == "CurrencyColumn" %}
+                                <input type="number" step="0.01" name="column_{{ col_info.column.pk }}" id="column_{{ col_info.column.pk }}" class="form-control" {% if col_info.column.required %}required{% endif %}>
+                            {% elif col_info.type_name == "URLColumn" %}
+                                <input type="url" name="column_{{ col_info.column.pk }}" id="column_{{ col_info.column.pk }}" class="form-control" {% if col_info.column.required %}required{% endif %}>
                             {% else %}
-                                <input type="text" name="column_{{ column.pk }}" id="column_{{ column.pk }}" class="form-control" {% if column.required %}required{% endif %}>
+                                <input type="text" name="column_{{ col_info.column.pk }}" id="column_{{ col_info.column.pk }}" class="form-control" {% if col_info.column.required %}required{% endif %}>
                             {% endif %}
                         </div>
                     {% endfor %}
