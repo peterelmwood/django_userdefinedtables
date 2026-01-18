@@ -80,29 +80,27 @@ def delete_column(request, list_pk, column_pk):
 def list_detail(request, list_pk):
     """View to display list with all rows and data."""
     my_list = get_object_or_404(List, pk=list_pk)
-    columns = my_list.columns.all().order_by('index')
-    rows = my_list.rows.all().order_by('index')
+    columns = list(my_list.columns.all().order_by('index'))
+    rows = list(my_list.rows.all().order_by('index'))
+
+    # Prefetch all entries for the displayed rows and columns to avoid
+    # per-cell queries (rows * columns * entry_types).
+    row_ids = [row.id for row in rows]
+    column_ids = [column.id for column in columns]
+
+    entries_by_key = {}
+    if row_ids and column_ids:
+        for entry_type in ENTRY_TYPES:
+            for entry in entry_type.objects.filter(row_id__in=row_ids, column_id__in=column_ids):
+                # There should be at most one entry per (row, column) pair.
+                entries_by_key[(entry.row_id, entry.column_id)] = entry
     
     # Build table data
     table_data = []
     for row in rows:
         row_data = {'row': row, 'entries': []}
         for column in columns:
-            # Get the specific column type instance
-            column_type = get_column_type_instance(column)
-            entry = None
-            
-            # Get the entry for this row and column
-            if column_type:
-                # Find corresponding entry type
-                for entry_type in ENTRY_TYPES:
-                    if entry_type._meta.model_name.replace('entry', 'column') == column_type._meta.model_name:
-                        try:
-                            entry = entry_type.objects.filter(row=row, column=column_type).first()
-                        except (AttributeError, ObjectDoesNotExist):
-                            pass
-                        break
-            
+            entry = entries_by_key.get((row.id, column.id))
             row_data['entries'].append(entry.value if entry else '')
         table_data.append(row_data)
     
