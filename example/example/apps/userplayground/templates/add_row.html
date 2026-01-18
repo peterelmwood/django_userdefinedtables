@@ -17,7 +17,7 @@
             <a href="{% url 'add_column' list.pk %}">Add columns</a> to this table first before adding data.
         </div>
     {% else %}
-        <form action="" method="post" class="form">
+        <form action="" method="post" class="form" enctype="multipart/form-data">
             {% csrf_token %}
             
             <div class="card">
@@ -49,6 +49,23 @@
                                 <input type="number" step="0.01" name="column_{{ col_info.column.pk }}" id="column_{{ col_info.column.pk }}" class="form-control" {% if col_info.column.required %}required{% endif %}>
                             {% elif col_info.type_name == "URLColumn" %}
                                 <input type="url" name="column_{{ col_info.column.pk }}" id="column_{{ col_info.column.pk }}" class="form-control" {% if col_info.column.required %}required{% endif %}>
+                            {% elif col_info.type_name == "ChoiceColumn" %}
+                                <select name="column_{{ col_info.column.pk }}" id="column_{{ col_info.column.pk }}" class="form-select" {% if col_info.column.required %}required{% endif %}>
+                                    <option value="">-- Select a choice --</option>
+                                    {% for choice in col_info.choices %}
+                                        <option value="{{ choice.pk }}">{{ choice.choice }}</option>
+                                    {% endfor %}
+                                </select>
+                            {% elif col_info.type_name == "PictureColumn" %}
+                                <input type="file" name="column_{{ col_info.column.pk }}" id="column_{{ col_info.column.pk }}" class="form-control" accept="image/*" {% if col_info.column.required %}required{% endif %}>
+                                <small class="text-muted">Upload an image file</small>
+                            {% elif col_info.type_name == "LookupColumn" %}
+                                <select name="column_{{ col_info.column.pk }}" id="column_{{ col_info.column.pk }}" class="form-select" {% if col_info.column.required %}required{% endif %}>
+                                    <option value="">-- Select a value --</option>
+                                    {% for entry in col_info.lookup_entries %}
+                                        <option value="{{ entry.pk }}">{{ entry.value }}</option>
+                                    {% endfor %}
+                                </select>
                             {% else %}
                                 <input type="text" name="column_{{ col_info.column.pk }}" id="column_{{ col_info.column.pk }}" class="form-control" {% if col_info.column.required %}required{% endif %}>
                             {% endif %}
