@@ -12,7 +12,6 @@ from userdefinedtables.models import (
     ChoiceColumn,
     List,
     LookupColumn,
-    PictureColumn,
     Row,
 )
 
@@ -62,7 +61,7 @@ def add_column(request, list_pk=None):
         if form.is_valid():
             # Get the column type from cleaned data
             column_type_class = form.cleaned_data.get("column")
-            
+
             # Create an instance of the specific column type
             column = column_type_class(
                 name=form.cleaned_data.get("name"),
@@ -103,7 +102,7 @@ def list_detail(request, list_pk):
             for entry in entry_type.objects.filter(row_id__in=row_ids, column_id__in=column_ids):
                 # There should be at most one entry per (row, column) pair.
                 entries_by_key[(entry.row_id, entry.column_id)] = entry
-    
+
     # Build table data
     table_data = []
     for row in rows:
@@ -112,7 +111,7 @@ def list_detail(request, list_pk):
             entry = entries_by_key.get((row.id, column.id))
             row_data['entries'].append(entry.value if entry else '')
         table_data.append(row_data)
-    
+
     context = {
         'list': my_list,
         'columns': columns,
@@ -126,16 +125,16 @@ def add_row(request, list_pk):
     """View to add a new row with data entry."""
     my_list = get_object_or_404(List, pk=list_pk)
     columns = my_list.columns.all().order_by('index')
-    
+
     if request.method == "POST":
         # Create a new row
         row = Row.objects.create(list=my_list)
-        
+
         # Save entries for each column
         for column in columns:
             # Get the specific column type instance
             column_type = get_column_type_instance(column)
-            
+
             if column_type:
                 # Find corresponding entry type
                 entry_type = None
@@ -143,10 +142,10 @@ def add_row(request, list_pk):
                     if et._meta.model_name.replace('entry', 'column') == column_type._meta.model_name:
                         entry_type = et
                         break
-                
+
                 if entry_type:
                     field_name = f"column_{column.pk}"
-                    
+
                     # Handle different entry types based on their specific requirements
                     try:
                         if entry_type._meta.model_name == 'binarycolumnentry':
@@ -194,10 +193,10 @@ def add_row(request, list_pk):
                                 entry_type.objects.create(row=row, column=column_type, value=value)
                     except Exception as e:
                         messages.error(request, f"Error saving {column.name}: {str(e)}")
-        
+
         messages.success(request, "Row added successfully!")
         return redirect("list_detail", list_pk=list_pk)
-    
+
     # Prepare columns with their type information for the template
     columns_with_types = []
     for column in columns:
@@ -207,7 +206,7 @@ def add_row(request, list_pk):
             'column': column,
             'type_name': type_name,
         }
-        
+
         # Add special data for certain column types
         if isinstance(column_type, ChoiceColumn):
             # Get all available choices for ChoiceColumn
@@ -231,9 +230,9 @@ def add_row(request, list_pk):
                         lookup_entries.extend(entries)
                         break
             col_info['lookup_entries'] = lookup_entries
-        
+
         columns_with_types.append(col_info)
-    
+
     context = {
         'list': my_list,
         'columns_with_types': columns_with_types,
