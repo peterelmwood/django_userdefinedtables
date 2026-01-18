@@ -145,7 +145,17 @@ def add_row(request, list_pk):
                         try:
                             # Handle different entry types
                             if entry_type._meta.model_name == 'binarycolumnentry':
-                                value = value.lower() in ['true', '1', 'yes', 'on']
+                                normalized = value.strip().lower()
+                                if not normalized and not column.required:
+                                    # Preserve "no selection" for optional fields
+                                    value = None
+                                elif normalized in ['true', '1', 'yes', 'on']:
+                                    value = True
+                                elif normalized in ['false', '0', 'no', 'off']:
+                                    value = False
+                                else:
+                                    # Fallback to previous behavior: anything not explicitly truthy is False
+                                    value = False
                             entry_type.objects.create(row=row, column=column_type, value=value)
                         except Exception as e:
                             messages.error(request, f"Error saving {column.name}: {str(e)}")
