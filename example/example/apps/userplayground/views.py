@@ -10,6 +10,7 @@ from userdefinedtables.models import (
     ENTRY_TYPES,
     Choice,
     ChoiceColumn,
+    Entry,
     List,
     LookupColumn,
     Row,
@@ -62,17 +63,20 @@ def add_column(request, list_pk=None):
             # Get the column type from cleaned data
             column_type_class = form.cleaned_data.get("column")
 
-            # Create an instance of the specific column type
-            column = column_type_class(
-                name=form.cleaned_data.get("name"),
-                description=form.cleaned_data.get("description", ""),
-                required=form.cleaned_data.get("required", False),
-                unique=form.cleaned_data.get("unique", False),
-                list=my_list
-            )
-            column.save()
-            messages.success(request, f"Column '{column.name}' added successfully!")
-            return redirect("add_column", list_pk=list_pk)
+            if column_type_class:
+                # Create an instance of the specific column type
+                column = column_type_class(
+                    name=form.cleaned_data.get("name"),
+                    description=form.cleaned_data.get("description", ""),
+                    required=form.cleaned_data.get("required", False),
+                    unique=form.cleaned_data.get("unique", False),
+                    list=my_list
+                )
+                column.save()
+                messages.success(request, f"Column '{column.name}' added successfully!")
+                return redirect("add_column", list_pk=list_pk)
+            else:
+                messages.error(request, "Invalid column type selected.")
     return render(request, "add_column.html", context={"form": form, "columns": columns, "list": my_list})
 
 
@@ -166,8 +170,11 @@ def add_row(request, list_pk):
                             # For ChoiceColumn, get the Choice instance by ID
                             choice_id = request.POST.get(field_name, '')
                             if choice_id:
-                                choice = Choice.objects.get(pk=choice_id)
-                                entry_type.objects.create(row=row, column=column_type, value=choice)
+                                try:
+                                    choice = get_object_or_404(Choice, pk=choice_id)
+                                    entry_type.objects.create(row=row, column=column_type, value=choice)
+                                except Exception:
+                                    messages.error(request, f"Invalid choice selected for {column.name}")
                             elif column.required:
                                 messages.error(request, f"Choice is required for {column.name}")
                         elif entry_type._meta.model_name == 'picturecolumnentry':
@@ -181,9 +188,11 @@ def add_row(request, list_pk):
                             # For LookupColumn, get the Entry instance by ID
                             entry_id = request.POST.get(field_name, '')
                             if entry_id:
-                                from userdefinedtables.models import Entry
-                                lookup_entry = Entry.objects.get(pk=entry_id)
-                                entry_type.objects.create(row=row, column=column_type, value=lookup_entry)
+                                try:
+                                    lookup_entry = get_object_or_404(Entry, pk=entry_id)
+                                    entry_type.objects.create(row=row, column=column_type, value=lookup_entry)
+                                except Exception:
+                                    messages.error(request, f"Invalid lookup value selected for {column.name}")
                             elif column.required:
                                 messages.error(request, f"Lookup value is required for {column.name}")
                         else:
