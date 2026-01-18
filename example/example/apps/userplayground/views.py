@@ -16,27 +16,28 @@ class ListsView(generic.ListView):
 
 
 def add_table(request):
-    if request.method == "GET":
-        form = AddTableForm()
-        return render(request, "add_table.html", context={"form": form})
-    else:
+    if request.method == "POST":
         form = AddTableForm(request.POST)
-        form.save()
-        return redirect("playground")
+        if form.is_valid():
+            form.save()
+            return redirect("playground")
+    else:
+        form = AddTableForm()
+    return render(request, "add_table.html", context={"form": form})
 
 
 @csrf_protect
 def add_column(request, list_pk=None):
     my_list = get_object_or_404(List, pk=list_pk)
-
     columns = my_list.columns.all()
 
-    if request.method == "GET":
-        form = AddColumnForm(initial={COLUMN_TYPES[0]._meta.object_name: "Yes"})
-    else:
+    if request.method == "POST":
         form = AddColumnForm(request.POST)
         if form.is_valid():
             column = form.save(commit=False)
             column.list = my_list
             column.save()
+            return redirect("add_column", list_pk=list_pk)
+    else:
+        form = AddColumnForm(initial={COLUMN_TYPES[0]._meta.object_name: "Yes"})
     return render(request, "add_column.html", context={"form": form, "columns": columns})
