@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.15] - 2026-09-16
+
 ### Changed
 - Removed `django-bootstrap-v5` from package dependencies (it's only used in the example app)
 - Replaced wildcard import in `admin.py` with explicit imports for better code clarity
@@ -43,5 +45,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multi-table inheritance for simplified querying
 - Comprehensive test suite
 
-[Unreleased]: https://github.com/peterelmwood/django_userdefinedtables/compare/v0.0.14...HEAD
+[Unreleased]: https://github.com/peterelmwood/django_userdefinedtables/compare/v0.0.15...HEAD
+[0.0.15]: https://github.com/peterelmwood/django_userdefinedtables/compare/v0.0.14...v0.0.15
 [0.0.14]: https://github.com/peterelmwood/django_userdefinedtables/releases/tag/v0.0.14
