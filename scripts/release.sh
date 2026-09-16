@@ -22,11 +22,12 @@
 #      rebuild old artifacts or depend on the old version being reachable.
 #   3. If main's head is not a release commit, something has merged since the
 #      last release: compute the bump level from the release:* labels of every
-#      PR merged into main whose merge commit is in v<current>..HEAD (one
-#      `gh pr list` query against the consistent list API, not the lagging
-#      search index, filtered by git ancestry, so squash, merge, and rebase
-#      merges all count; before the first tagged release the range starts at
-#      the commit that introduced the current version), bump,
+#      PR merged into main whose merge commit is in v<current>..HEAD (a
+#      GraphQL query of merged PRs ordered by last update, newest first,
+#      paginated only until a PR last updated before the range start appears,
+#      then filtered by git ancestry, so squash, merge, and rebase merges all
+#      count; before the first tagged release the range starts at the commit
+#      that introduced the current version), bump,
 #      commit, tag, push atomically (retrying from the fresh origin/main if the
 #      push is rejected), then finish that release as in step 2. Labels are
 #      read as they are at run time, except that the triggering PR's labels
@@ -55,10 +56,12 @@ shopt -s inherit_errexit
 : "${PR_NUMBER:?PR_NUMBER is required}"
 PR_LABELS="${PR_LABELS:-}"
 PR_MERGE_SHA="${PR_MERGE_SHA:-}"
-# How many recently updated merged PRs one query fetches. The run aborts if
-# that many come back and none of them was last updated before the range
-# start, because then PRs merged in the range could lie beyond the cap.
-PR_QUERY_LIMIT=1000
+# Merged PRs are listed newest-updated first, 100 per page, until a PR last
+# updated before the range start appears (every PR merged in the range was
+# updated after it, so nothing in the range can follow). If that many pages
+# go by without one, the run aborts rather than guess.
+PR_QUERY_PAGE_SIZE=100
+PR_QUERY_MAX_PAGES=10
 # Overridable so the script can be exercised without a real build backend.
 RELEASE_BUILD_CMD="${RELEASE_BUILD_CMD:-python -m build --sdist --wheel --outdir}"
 MAX_PUSH_ATTEMPTS=3
@@ -96,37 +99,76 @@ in_range() {
   ! git merge-base --is-ancestor "$1" "$2" 2>/dev/null
 }
 
-# "<number>\t<labels>" for every PR merged into main whose merge commit lies
-# in $1..HEAD. One query of the most recently updated merged PRs (the list
-# API, which is consistent, rather than the search index, which can lag a
-# merge by minutes), then git ancestry decides membership, so squash, merge,
-# and rebase merges all count and the number of API calls does not grow with
-# the size of the range. A PR merged after the range start was also updated
-# after it, so if the query returns its full quota and every row was updated
-# after the range start, PRs in the range may lie beyond the quota: abort.
-# Any API failure returns non-zero.
+# One page of merged PRs against main, newest-updated first, as TSV rows
+# "number\toid\tupdatedAt\tlabels" followed by "PAGEINFO\t<hasNextPage>\t<cursor>".
+# oid is "null" when GitHub records no merge commit. Uses GraphQL directly
+# because `gh pr list` cannot order by update time, and the coverage rule
+# below depends on that order. Consistent (not the search index).
+merged_prs_page() {
+  local after="$1" query
+  query='query($owner: String!, $name: String!, $first: Int!, $after: String) {
+    repository(owner: $owner, name: $name) {
+      pullRequests(states: MERGED, baseRefName: "main", first: $first, after: $after,
+                   orderBy: {field: UPDATED_AT, direction: DESC}) {
+        pageInfo { hasNextPage endCursor }
+        nodes { number updatedAt mergeCommit { oid } labels(first: 100) { nodes { name } } }
+      }
+    }
+  }'
+  gh api graphql -f query="${query}" -F owner="${GH_REPO%/*}" -F name="${GH_REPO#*/}" \
+    -F first="${PR_QUERY_PAGE_SIZE}" -F after="${after}" \
+    --jq '.data.repository.pullRequests
+          | (.nodes[] | [.number, (.mergeCommit.oid // "null"), .updatedAt, ([.labels.nodes[].name] | join(","))] | @tsv),
+            (["PAGEINFO", (.pageInfo.hasNextPage | tostring), (.pageInfo.endCursor // "")] | @tsv)'
+}
+
+# The commit that landed PR $1 on main when GitHub records no merge commit:
+# the last commit of the PR (for a rebase merge the rebased commits keep
+# their identity only if unchanged, so this is a best effort; the label of
+# such a PR is also covered by PR_LABELS when it is the triggering PR).
+last_commit_of_pr() {
+  gh api "repos/${GH_REPO}/pulls/$1/commits" --jq '.[-1].sha'
+}
+
+# "<number>\t<labels>" for every PR merged into main whose landing commit
+# lies in $1..HEAD. Pages through merged PRs newest-updated first and stops
+# at the first PR last updated before the range start: every PR merged in
+# the range was updated after it, so none can follow. Git ancestry decides
+# membership, so squash, merge, and rebase merges all count. Any API failure,
+# or running out of pages before coverage is proven, returns non-zero.
 merged_prs_in_range() {
-  local since="$1" since_date rows number oid updated labels saw_older=0 count=0 found=""
+  local since="$1" since_date rows number oid updated labels after="" page=0 covered=0 has_next found=""
   since_date=$(git log -1 --format=%cI "${since}")
-  rows=$(gh pr list --state merged --base main --limit "${PR_QUERY_LIMIT}" \
-    --json number,labels,mergeCommit,updatedAt \
-    --jq '.[] | select(.mergeCommit != null) | [.number, .mergeCommit.oid, .updatedAt, ([.labels[].name] | join(","))] | @tsv') || {
-    echo "::error::Could not list merged pull requests" >&2
-    return 1
-  }
-  # Labels come last so an unlabelled PR (empty field) still parses. The loop
-  # is deliberately not piped anywhere: the counters must survive it.
-  while IFS=$'\t' read -r number oid updated labels; do
-    [ -n "${number}" ] || continue
-    count=$((count + 1))
-    [[ "${updated}" < "${since_date}" ]] && saw_older=1
-    in_range "${oid}" "${since}" || continue
-    found+="${number}"$'\t'"${labels}"$'\n'
-  done <<<"${rows}"
-  if [ "${count}" -ge "${PR_QUERY_LIMIT}" ] && [ "${saw_older}" -eq 0 ]; then
-    echo "::error::${PR_QUERY_LIMIT} merged pull requests were all updated after ${since_date}; the query may not cover the whole range" >&2
-    return 1
-  fi
+  while [ "${covered}" -eq 0 ]; do
+    page=$((page + 1))
+    if [ "${page}" -gt "${PR_QUERY_MAX_PAGES}" ]; then
+      echo "::error::More than $((PR_QUERY_MAX_PAGES * PR_QUERY_PAGE_SIZE)) merged pull requests updated since ${since_date}; cannot prove the range is covered" >&2
+      return 1
+    fi
+    rows=$(merged_prs_page "${after}") || {
+      echo "::error::Could not list merged pull requests (page ${page})" >&2
+      return 1
+    }
+    has_next=false
+    # Labels come last so an unlabelled PR (empty field) still parses. The
+    # loop is deliberately not piped anywhere: its variables must survive it.
+    while IFS=$'\t' read -r number oid updated labels; do
+      [ -n "${number}" ] || continue
+      if [ "${number}" = "PAGEINFO" ]; then
+        has_next="${oid}"; after="${updated}"; continue
+      fi
+      if [[ "${updated}" < "${since_date}" ]]; then covered=1; continue; fi
+      if [ "${oid}" = "null" ]; then
+        oid=$(last_commit_of_pr "${number}") || {
+          echo "::error::Could not read the commits of pull request #${number}" >&2
+          return 1
+        }
+      fi
+      in_range "${oid}" "${since}" || continue
+      found+="${number}"$'\t'"${labels}"$'\n'
+    done <<<"${rows}"
+    [ "${has_next}" = "true" ] || covered=1
+  done
   sort -un <<<"${found}" | sed '/^$/d'
 }
 
