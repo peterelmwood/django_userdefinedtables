@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.3
 ### STAGE 1
-FROM python:3-slim-bullseye as base
+FROM python:3.13-slim AS base
 
 WORKDIR /install
 
@@ -10,7 +10,7 @@ RUN python -m venv /opt/venv \
     && /opt/venv/bin/pip install -r requirements.txt
 
 ### STAGE 2
-FROM base as final
+FROM base AS final
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1

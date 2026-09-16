@@ -2,11 +2,10 @@
 Django settings for testing the example locally without PostgreSQL.
 
 WARNING: This file is for LOCAL TESTING ONLY and should NEVER be used in production.
-The secret key and ALLOWED_HOSTS settings are insecure and only suitable for 
+The secret key and ALLOWED_HOSTS settings are insecure and only suitable for
 local development testing.
 """
 
-import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.

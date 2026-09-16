@@ -10,6 +10,6 @@ VERSION = __version__
 
 # Public API
 __all__ = [
-    "__version__",
     "VERSION",
+    "__version__",
 ]

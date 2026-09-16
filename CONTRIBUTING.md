@@ -4,21 +4,26 @@ Thank you for your interest in contributing to django_userdefinedtables! This do
 
 ## Development Setup
 
-1. Fork and clone the repository:
+This project uses [uv](https://docs.astral.sh/uv/) for environment and dependency management and [ruff](https://docs.astral.sh/ruff/) for linting and formatting.
+
+1. Install uv (see the [uv installation guide](https://docs.astral.sh/uv/getting-started/installation/)).
+
+2. Fork and clone the repository:
    ```bash
    git clone https://github.com/YOUR-USERNAME/django_userdefinedtables.git
    cd django_userdefinedtables
    ```
 
-2. Install dependencies:
+3. Create the virtual environment and install all dependencies (including the `dev` group):
    ```bash
-   pip install -r requirements/base.txt
-   pip install -r requirements/dev.txt
+   uv sync
    ```
 
-3. Install pre-commit hooks:
+   uv will install the Python version from `.python-version` if it isn't already available.
+
+4. Install pre-commit hooks:
    ```bash
-   pre-commit install
+   uv run pre-commit install
    ```
 
 ## Running Tests
@@ -26,22 +31,51 @@ Thank you for your interest in contributing to django_userdefinedtables! This do
 Run the test suite using Django's test runner:
 
 ```bash
-DJANGO_SETTINGS_MODULE=test_settings python manage.py test
+DJANGO_SETTINGS_MODULE=test_settings uv run manage.py test
+```
+
+To test against a specific Django version, install it into the environment first:
+
+```bash
+uv pip install "Django~=6.0.0"
+DJANGO_SETTINGS_MODULE=test_settings uv run --no-sync manage.py test
 ```
 
 ## Code Style
 
-This project uses:
-- **Black** for code formatting (line length: 120)
-- **isort** for import sorting
-- **flake8** for linting
+This project uses **ruff** for both linting and formatting (line length: 120). Configuration lives in `pyproject.toml`.
 
-These are enforced via pre-commit hooks. To manually format your code:
+Formatting and linting are enforced via pre-commit hooks and in CI. To run them manually:
 
 ```bash
-black . --line-length 120
-isort . --profile black
+uv run ruff format .        # format
+uv run ruff check --fix .   # lint and apply safe autofixes
 ```
+
+Or without a project environment, via `uvx`:
+
+```bash
+uvx ruff format .
+uvx ruff check .
+```
+
+## Managing Dependencies
+
+Runtime dependencies live under `[project] dependencies` in `pyproject.toml`; development and test dependencies live under `[dependency-groups]`. After changing either, refresh the lockfile and commit `uv.lock`:
+
+```bash
+uv lock
+```
+
+The `uv-lock` pre-commit hook will fail if `uv.lock` is out of sync with `pyproject.toml`.
+
+## Building the Package
+
+```bash
+uv build
+```
+
+This produces an sdist and a wheel in `dist/`. The version is read from `userdefinedtables/__init__.py`.
 
 ## Making Changes
 

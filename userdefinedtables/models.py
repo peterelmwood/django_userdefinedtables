@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import List as TypedList
 
 from django.db import models
 from django.db.models.functions import Length
@@ -29,7 +28,7 @@ class Column(OrderableMixin, models.Model):
     index = models.PositiveBigIntegerField()
 
     class Meta:
-        constraints: TypedList = [
+        constraints: list = [
             models.UniqueConstraint(
                 fields=["name", "list"],
                 name="Column name cannot occur twice in one list.",
@@ -91,7 +90,7 @@ class SingleLineOfTextColumn(Column):
     class Meta:
         constraints = [
             models.CheckConstraint(
-                check=models.Q(maximum_length__lte=255), name="maximum_length field value cannot exceed 255."
+                condition=models.Q(maximum_length__lte=255), name="maximum_length field value cannot exceed 255."
             ),
         ]
 
@@ -163,7 +162,7 @@ class NumericalColumn(models.Model):
         abstract = True
         constraints = [
             models.CheckConstraint(
-                check=models.Q(maximum__gte=models.F("minimum"), maximum__isnull=False, minimum__isnull=False)
+                condition=models.Q(maximum__gte=models.F("minimum"), maximum__isnull=False, minimum__isnull=False)
                 | models.Q(maximum__isnull=True)
                 | models.Q(minimum__isnull=True),
                 name="%(class)s.minimum cannot exceed %(class)s.maximum.",
@@ -219,18 +218,18 @@ class CurrencyEntry(Entry):
         on_delete=models.CASCADE,
     )
 
+    def __str__(self) -> str:
+        return f"${self.value}"
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
     def save(self, *args, **kwargs):
         if (self.column.minimum is not None and self.column.minimum > self.value) or (
             self.column.maximum is not None and self.column.maximum < self.value
         ):
             raise ValueError(f"CurrencyEntry.value must be between {self.column.minimum} and {self.column.maximum}")
         super().save(*args, **kwargs)
-
-    def __str__(self) -> str:
-        return f"${self.value}"
-
-    def __repr__(self) -> str:
-        return self.__str__()
 
 
 class DateTimeColumn(Column):

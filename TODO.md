@@ -25,3 +25,4 @@ This is the markdown todo file for the django_userdefinedtables app.
 - [x] Improve README documentation
 - [x] Remove unnecessary dependencies
 - [x] Update Python and Django version support
+- [x] Modernize Python tooling (uv, ruff, pyproject.toml)

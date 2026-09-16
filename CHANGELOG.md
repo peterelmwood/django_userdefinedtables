@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Modernized Python tooling (#22):
+  - Packaging metadata moved from `setup.py`/`setup.cfg` into a PEP 621 `pyproject.toml`; the version is read statically so isolated builds no longer import the package (fixes #20)
+  - Dependencies are managed with [uv](https://docs.astral.sh/uv/) via `pyproject.toml` dependency groups and a committed `uv.lock`; the `requirements/` directory has been removed
+  - black, isort and flake8 have been replaced by [ruff](https://docs.astral.sh/ruff/) for linting and formatting
+  - pre-commit hooks updated and now include ruff, `uv lock` and django-upgrade
+  - CI now uses uv, fails on lint findings, and tests an explicit Python x Django matrix
+  - PyPI and TestPyPI publishing use Trusted Publishing (OIDC) instead of API token secrets; TestPyPI publishing only runs on `main`
+  - Added Dependabot configuration for GitHub Actions and Python dependencies
+- Dropped support for Python 3.8 and 3.9 (EOL); added Python 3.13 and 3.14
+- Dropped support for Django 3.2, 4.0, 4.1 and 4.2 (EOL); minimum is now Django 5.2 LTS, added support for Django 6.0 and 6.1
+- `CheckConstraint` definitions now use `condition=` instead of the `check=` argument removed in Django 6.0
 - Removed `django-bootstrap-v5` from package dependencies (it's only used in the example app)
 - Replaced wildcard import in `admin.py` with explicit imports for better code clarity
 - Updated Python version support: dropped Python 3.6 and 3.7 (EOL), added Python 3.11 and 3.12

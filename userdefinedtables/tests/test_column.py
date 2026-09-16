@@ -1,6 +1,4 @@
 from django.db import IntegrityError
-from django.test import TestCase
-
 from model_bakery import baker
 
 from userdefinedtables.tests.test_orderable_mixin import OrderableMixinTestSuite
