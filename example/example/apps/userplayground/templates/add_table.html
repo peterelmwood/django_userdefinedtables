@@ -19,9 +19,9 @@
         {% csrf_token %}
         {% bootstrap_form form %}
 
-        {% buttons %}
+        <div class="mb-3">
             <button type="submit" class="btn btn-primary">Create Table</button>
             <a href="{% url "playground" %}" class="btn btn-secondary">Cancel</a>
-        {% endbuttons %}
+        </div>
     </form>
 {% endblock content %}
