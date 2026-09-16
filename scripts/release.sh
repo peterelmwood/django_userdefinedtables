@@ -20,12 +20,17 @@
 #      rebuild old artifacts or depend on the old version being reachable.
 #   3. If main's head is not a release commit, something has merged since the
 #      last release: compute the bump level from the release:* labels of every
-#      PR whose commits are in v<current>..HEAD (found through the commits API,
-#      so squash, merge, and rebase merges all count; before the first tagged
-#      release the range starts at the commit that introduced the current
-#      version), bump, commit, tag, push atomically (retrying from the fresh
-#      origin/main if the push is rejected), then finish that release as in
-#      step 2.
+#      PR merged into main whose merge commit is in v<current>..HEAD (one
+#      paginated `gh pr list` query filtered by git ancestry, so squash, merge,
+#      and rebase merges all count; before the first tagged release the range
+#      starts at the commit that introduced the current version), bump,
+#      commit, tag, push atomically (retrying from the fresh origin/main if the
+#      push is rejected), then finish that release as in step 2.
+#
+# A "release commit" is recognised by three things together: the subject
+# "Release vX.Y.Z" where X.Y.Z is the version in the version file, the
+# committer identity this script uses, and the commit touching the version
+# file. An ordinary commit that merely reuses the subject does not qualify.
 #
 # Code from the repository (the build backend, setup.py, scripts/release.py)
 # is always run with the PyPI and GitHub credentials stripped from the
@@ -46,6 +51,8 @@ RELEASE_BUILD_CMD="${RELEASE_BUILD_CMD:-python -m build --sdist --wheel --outdir
 MAX_PUSH_ATTEMPTS=3
 DIST_NAME="django_userdefinedtables"
 VERSION_FILE="userdefinedtables/__init__.py"
+RELEASE_BOT_NAME="${RELEASE_BOT_NAME:-github-actions[bot]}"
+RELEASE_BOT_EMAIL="${RELEASE_BOT_EMAIL:-41898282+github-actions[bot]@users.noreply.github.com}"
 
 # Run repository code without the publishing credentials in its environment.
 untrusted() { env -u TWINE_USERNAME -u TWINE_PASSWORD -u GH_TOKEN -u GITHUB_TOKEN "$@"; }
@@ -59,38 +66,40 @@ git_auth() {
 }
 
 tag_exists() { git rev-parse -q --verify "refs/tags/v$1" >/dev/null; }
-head_subject() { git log -1 --format=%s "${1:-HEAD}"; }
-is_release_commit() { [ "$(head_subject "${2:-HEAD}")" = "Release v$1" ]; }
 
-# Numbers of every PR merged into main that is associated with a commit in
-# the given revision range. The commits API also lists open PRs and PRs
-# against other bases that happen to contain the commit; those are filtered
-# out so only merged main PRs contribute release labels.
-# Any API failure makes this return non-zero, which aborts the run.
-prs_in_range() {
-  local sha found="" numbers
-  for sha in $(git rev-list "$1"); do
-    numbers=$(gh api "repos/${GH_REPO}/commits/${sha}/pulls" \
-      --jq '.[] | select(.merged_at != null and .base.ref == "main") | .number') || {
-      echo "::error::Could not list pull requests for commit ${sha}" >&2
-      return 1
-    }
-    found+="${numbers}"$'\n'
-  done
-  sort -un <<<"${found}" | sed '/^$/d'
+# True when commit $2 (default HEAD) is a release commit for version $1 made
+# by this script: matching subject, our committer identity, and a change to
+# the version file. See the header for why all three are required.
+is_release_commit() {
+  local version="$1" ref="${2:-HEAD}"
+  [ "$(git log -1 --format=%s "${ref}")" = "Release v${version}" ] || return 1
+  [ "$(git log -1 --format=%ce "${ref}")" = "${RELEASE_BOT_EMAIL}" ] || return 1
+  git diff-tree --no-commit-id --name-only -r "${ref}" | grep -qxF "${VERSION_FILE}"
 }
 
-# Comma-separated labels of the given PR numbers. Any lookup failure aborts.
-labels_of_prs() {
-  local n labels all=""
-  for n in "$@"; do
-    labels=$(gh pr view "$n" --json labels --jq '[.labels[].name] | join(",")') || {
-      echo "::error::Could not read labels of pull request #${n}" >&2
-      return 1
-    }
-    all+=",${labels}"
-  done
-  echo "${all#,}"
+# "<number>\t<labels>" for every PR merged into main whose merge commit lies
+# in $1..HEAD. One paginated query (PRs merged at or after $1's commit date,
+# which is a superset), then git ancestry decides membership, so squash,
+# merge, and rebase merges all count and the number of API calls does not
+# grow with the size of the range. Any API failure returns non-zero.
+merged_prs_in_range() {
+  local since="$1" since_date rows number labels oid
+  since_date=$(git log -1 --format=%cI "${since}")
+  rows=$(gh pr list --state merged --base main --limit 500 \
+    --search "merged:>=${since_date}" \
+    --json number,labels,mergeCommit \
+    --jq '.[] | select(.mergeCommit != null) | [.number, .mergeCommit.oid, ([.labels[].name] | join(","))] | @tsv') || {
+    echo "::error::Could not list pull requests merged since ${since_date}" >&2
+    return 1
+  }
+  # Labels come last so an unlabelled PR (empty field) still parses.
+  while IFS=$'\t' read -r number oid labels; do
+    [ -n "${number}" ] || continue
+    # In range: reachable from HEAD but not from the range start.
+    git merge-base --is-ancestor "${oid}" HEAD 2>/dev/null || continue
+    if git merge-base --is-ancestor "${oid}" "${since}" 2>/dev/null; then continue; fi
+    printf '%s\t%s\n' "${number}" "${labels}"
+  done <<<"${rows}" | sort -un
 }
 
 # Bump level implied by everything merged since the release of $1.
@@ -104,10 +113,9 @@ bump_level_since() {
     since=$(git log --format=%H -S"__version__ = \"$1\"" -- "${VERSION_FILE}" | tail -n 1)
     echo "No tag v$1; counting merges since ${since} (the commit that set that version)" >&2
   fi
-  prs=$(prs_in_range "${since}..HEAD") || return 1
-  echo "PRs merged since v$1: $(tr '\n' ' ' <<<"${prs:-none}")" >&2
-  # shellcheck disable=SC2086
-  labels=$(labels_of_prs ${prs}) || return 1
+  prs=$(merged_prs_in_range "${since}") || return 1
+  echo "PRs merged since v$1: $(cut -f1 <<<"${prs}" | tr '\n' ' ')" >&2
+  labels=$(cut -f2 <<<"${prs}" | paste -sd, -)
   untrusted python scripts/release.py level --labels "${labels}"
 }
 
@@ -149,7 +157,20 @@ finish_release() {
   rm -rf "${work}"
 }
 
+# Complete the release of $1 if this script started it and it is not done.
+ensure_finished() {
+  if tag_exists "$1" && is_release_commit "$1" "v$1"; then
+    if release_is_complete "$1"; then
+      echo "Release v$1 is complete"
+    else
+      finish_release "$1"
+    fi
+  fi
+}
+
 main() {
+  git config user.name "${RELEASE_BOT_NAME}"
+  git config user.email "${RELEASE_BOT_EMAIL}"
   git_auth fetch --quiet origin main --tags
   git reset --quiet --hard origin/main
   local current version level attempt
@@ -164,13 +185,7 @@ main() {
 
   # 2. Complete the current version if this workflow started it and it is
   #    not finished.
-  if tag_exists "${current}" && is_release_commit "${current}" "v${current}"; then
-    if release_is_complete "${current}"; then
-      echo "Release v${current} is complete"
-    else
-      finish_release "${current}"
-    fi
-  fi
+  ensure_finished "${current}"
 
   # 3. Cut a new release if anything merged since.
   for attempt in $(seq 1 "${MAX_PUSH_ATTEMPTS}"); do
@@ -178,6 +193,10 @@ main() {
     git reset --quiet --hard origin/main
     current=$(untrusted python scripts/release.py current)
     if is_release_commit "${current}"; then
+      # Also covers a push that GitHub accepted but whose response was lost:
+      # the retry lands here with the release commit at the head, so make
+      # sure that version is finished before declaring there is nothing to do.
+      ensure_finished "${current}"
       echo "Nothing merged since v${current}; nothing to release"
       return 0
     fi

@@ -80,11 +80,6 @@ jobs:
       - name: Run release script tests
         run: python -m unittest discover -s scripts -p 'test_*.py'
 
-      - name: Configure git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
       # scripts/release.sh finishes any release that was started but not
       # completed, then bumps/tags/pushes/publishes a new one if anything has
       # merged since. Every step is idempotent, so re-running this workflow
