@@ -101,14 +101,16 @@ in_range() {
 }
 
 # One page of merged PRs against main, newest-updated first, as TSV rows
-# "number\toid\tupdatedAt\tlabels-json" followed by "PAGEINFO\t<hasNextPage>\t<cursor>".
-# oid is "null" when GitHub records no merge commit. labels-json is a JSON
-# array of the label names the PR carried *when it was merged*, rebuilt from
-# its labeled/unlabeled timeline up to mergedAt (JSON keeps names with
-# commas or other punctuation intact). Uses GraphQL directly because
-# `gh pr list` cannot order by update time, and the coverage rule below
-# depends on that order. Consistent (not the search index). $1 is the page
-# cursor, empty for the first page (sent as GraphQL null, not "").
+# "number\toid\tupdatedAt\tmergedAt\tlabel-events\tlabels-json" followed by
+# "PAGEINFO\t<hasNextPage>\t<cursor>". oid is "null" when GitHub records no
+# merge commit. labels-json is a JSON array of the label names the PR carried
+# *when it was merged*, rebuilt from its labeled/unlabeled timeline up to
+# mergedAt (JSON keeps names with commas or other punctuation intact);
+# label-events is the total number of such events, so the caller can tell
+# when the 100 fetched here were not all of them. Uses GraphQL directly
+# because `gh pr list` cannot order by update time, and the coverage rule
+# below depends on that order. Consistent (not the search index). $1 is the
+# page cursor, empty for the first page (sent as GraphQL null, not "").
 merged_prs_page() {
   local after="$1" query
   local -a cursor=()
@@ -121,6 +123,7 @@ merged_prs_page() {
         nodes {
           number updatedAt mergedAt mergeCommit { oid }
           timelineItems(itemTypes: [LABELED_EVENT, UNLABELED_EVENT], first: 100) {
+            totalCount
             nodes {
               __typename
               ... on LabeledEvent { createdAt label { name } }
@@ -142,7 +145,7 @@ merged_prs_page() {
             if $e.__typename == "LabeledEvent" then (. + [$e.label.name] | unique)
             else (. - [$e.label.name]) end);
       .data.repository.pullRequests
-      | (.nodes[] | [.number, (.mergeCommit.oid // "null"), .updatedAt, (labels_at_merge | tojson)] | @tsv),
+      | (.nodes[] | [.number, (.mergeCommit.oid // "null"), .updatedAt, .mergedAt, .timelineItems.totalCount, (labels_at_merge | tojson)] | @tsv),
         (["PAGEINFO", (.pageInfo.hasNextPage | tostring), (.pageInfo.endCursor // "")] | @tsv)'
 }
 
@@ -153,7 +156,33 @@ last_commit_of_pr() {
 }
 
 # Seconds since the epoch for an ISO-8601 timestamp (any UTC offset).
-epoch() { date -u -d "$1" +%s; }
+# Fails loudly on anything unparsable rather than yielding an empty value.
+epoch() {
+  local seconds
+  seconds=$(date -u -d "$1" +%s 2>/dev/null) && [ -n "${seconds}" ] || {
+    echo "::error::Unparsable timestamp: $1" >&2
+    return 1
+  }
+  echo "${seconds}"
+}
+
+# JSON array of the labels PR $1 carried at $2 (its merge time), replayed
+# from its complete labeled/unlabeled event history. Used only for a PR
+# with more label events than one GraphQL page holds.
+labels_at_merge_of_pr() {
+  local number="$1" merged_epoch created_epoch rows created event name
+  local -A have=()
+  merged_epoch=$(epoch "$2") || return 1
+  rows=$(gh api --paginate "repos/${GH_REPO}/issues/${number}/events" \
+    --jq '.[] | select(.event == "labeled" or .event == "unlabeled") | [.created_at, .event, .label.name] | @tsv') || return 1
+  while IFS=$'\t' read -r created event name; do
+    [ -n "${created}" ] || continue
+    created_epoch=$(epoch "${created}") || return 1
+    [ "${created_epoch}" -le "${merged_epoch}" ] || continue
+    if [ "${event}" = "labeled" ]; then have["${name}"]=1; else unset "have[${name}]"; fi
+  done < <(sort <<<"${rows}")
+  untrusted python -c 'import json, sys; print(json.dumps(sys.argv[1:]))' "${!have[@]}"
+}
 
 # "<number>\t<labels>" for every PR merged into main whose landing commit
 # lies in $1..HEAD. Pages through merged PRs newest-updated first and stops
@@ -162,7 +191,7 @@ epoch() { date -u -d "$1" +%s; }
 # membership, so squash, merge, and rebase merges all count. Any API failure,
 # or running out of pages before coverage is proven, returns non-zero.
 merged_prs_in_range() {
-  local since="$1" since_epoch rows number oid updated labels after="" page=0 covered=0 has_next found=""
+  local since="$1" since_epoch updated_epoch rows number oid updated merged events labels after="" page=0 covered=0 has_next found=""
   # Compare as epoch seconds: GitHub timestamps are UTC ("Z") while git
   # keeps the commit's own offset, so the strings are not comparable.
   since_epoch=$(git log -1 --format=%ct "${since}")
@@ -179,12 +208,13 @@ merged_prs_in_range() {
     has_next=false
     # Labels come last so an unlabelled PR (empty field) still parses. The
     # loop is deliberately not piped anywhere: its variables must survive it.
-    while IFS=$'\t' read -r number oid updated labels; do
+    while IFS=$'\t' read -r number oid updated merged events labels; do
       [ -n "${number}" ] || continue
       if [ "${number}" = "PAGEINFO" ]; then
         has_next="${oid}"; after="${updated}"; continue
       fi
-      if [ "$(epoch "${updated}")" -lt "${since_epoch}" ]; then covered=1; continue; fi
+      updated_epoch=$(epoch "${updated}") || return 1
+      if [ "${updated_epoch}" -lt "${since_epoch}" ]; then covered=1; continue; fi
       if [ "${oid}" = "null" ]; then
         oid=$(last_commit_of_pr "${number}") || {
           echo "::error::Could not read the commits of pull request #${number}" >&2
@@ -192,6 +222,13 @@ merged_prs_in_range() {
         }
       fi
       in_range "${oid}" "${since}" || continue
+      if [ "${events}" -gt "${PR_QUERY_PAGE_SIZE}" ]; then
+        # More label events than the page carried: replay the full history.
+        labels=$(labels_at_merge_of_pr "${number}" "${merged}") || {
+          echo "::error::Could not read the label history of pull request #${number}" >&2
+          return 1
+        }
+      fi
       found+="${number}"$'\t'"${labels}"$'\n'
     done <<<"${rows}"
     [ "${has_next}" = "true" ] || covered=1
@@ -215,10 +252,17 @@ bump_level_since() {
   # One JSON array of merge-time label names per PR, one per line.
   labels=$(cut -f2 <<<"${prs}")
   # The triggering PR's labels as of the merge event, as a second source for
-  # the same snapshot. Its merge commit decides whether it belongs to this
-  # release (it may have shipped in an earlier one); without a merge commit
-  # to check, include them regardless.
-  if [ -z "${PR_MERGE_SHA}" ] || in_range "${PR_MERGE_SHA}" "${since}"; then
+  # the same snapshot. Its landing commit decides whether it belongs to this
+  # release (it may have shipped in an earlier one); when the event carries
+  # no merge commit, resolve the landing commit the same way as above.
+  local trigger_sha="${PR_MERGE_SHA}"
+  if [ -z "${trigger_sha}" ]; then
+    trigger_sha=$(last_commit_of_pr "${PR_NUMBER}") || {
+      echo "::error::Could not read the commits of pull request #${PR_NUMBER}" >&2
+      return 1
+    }
+  fi
+  if in_range "${trigger_sha}" "${since}"; then
     labels+=$'\n'"${PR_LABELS_JSON}"
   fi
   untrusted python scripts/release.py level <<<"${labels}"
