@@ -5,8 +5,8 @@
 # Requires: git (on a full clone of main), gh (authenticated), python with
 # scripts/release.py, build, twine (TWINE_USERNAME/TWINE_PASSWORD set).
 # Environment: GH_REPO (owner/name), PR_NUMBER (the merged PR that triggered
-# the run), PR_LABELS (that PR's labels as they were in the merge event,
-# comma-separated), PR_MERGE_SHA (its merge commit), optionally
+# the run), PR_LABELS_JSON (that PR's labels as they were in the merge event,
+# a JSON array of names), PR_MERGE_SHA (its merge commit), optionally
 # TWINE_REPOSITORY_URL.
 #
 # Every step is idempotent, so the whole script is safe to re-run:
@@ -29,11 +29,12 @@
 #      count; before the first tagged release the range starts at the commit
 #      that introduced the current version), bump,
 #      commit, tag, push atomically (retrying from the fresh origin/main if the
-#      push is rejected), then finish that release as in step 2. Labels are
-#      read as they are at run time, except that the triggering PR's labels
-#      from the merge event (PR_LABELS) are always included when its merge
-#      commit (PR_MERGE_SHA) lies in the range, so relabelling that PR after
-#      the merge cannot lower its bump.
+#      push is rejected), then finish that release as in step 2. Each PR's
+#      labels are taken as they were at its merge time, reconstructed from
+#      its label timeline in the same query, so relabelling a PR after the
+#      merge changes nothing; the triggering PR's labels from the merge event
+#      (PR_LABELS_JSON) are included as well when its merge commit
+#      (PR_MERGE_SHA) lies in the range.
 #
 # A "release commit" is recognised by three things together: the subject
 # "Release vX.Y.Z" where X.Y.Z is the version in the version file, the
@@ -54,7 +55,7 @@ shopt -s inherit_errexit
 
 : "${GH_REPO:?GH_REPO (owner/name) is required}"
 : "${PR_NUMBER:?PR_NUMBER is required}"
-PR_LABELS="${PR_LABELS:-}"
+PR_LABELS_JSON="${PR_LABELS_JSON:-[]}"
 PR_MERGE_SHA="${PR_MERGE_SHA:-}"
 # Merged PRs are listed newest-updated first, 100 per page, until a PR last
 # updated before the range start appears (every PR merged in the range was
@@ -100,35 +101,59 @@ in_range() {
 }
 
 # One page of merged PRs against main, newest-updated first, as TSV rows
-# "number\toid\tupdatedAt\tlabels" followed by "PAGEINFO\t<hasNextPage>\t<cursor>".
-# oid is "null" when GitHub records no merge commit. Uses GraphQL directly
-# because `gh pr list` cannot order by update time, and the coverage rule
-# below depends on that order. Consistent (not the search index).
+# "number\toid\tupdatedAt\tlabels-json" followed by "PAGEINFO\t<hasNextPage>\t<cursor>".
+# oid is "null" when GitHub records no merge commit. labels-json is a JSON
+# array of the label names the PR carried *when it was merged*, rebuilt from
+# its labeled/unlabeled timeline up to mergedAt (JSON keeps names with
+# commas or other punctuation intact). Uses GraphQL directly because
+# `gh pr list` cannot order by update time, and the coverage rule below
+# depends on that order. Consistent (not the search index). $1 is the page
+# cursor, empty for the first page (sent as GraphQL null, not "").
 merged_prs_page() {
   local after="$1" query
+  local -a cursor=()
+  [ -n "${after}" ] && cursor=(-f "after=${after}")
   query='query($owner: String!, $name: String!, $first: Int!, $after: String) {
     repository(owner: $owner, name: $name) {
       pullRequests(states: MERGED, baseRefName: "main", first: $first, after: $after,
                    orderBy: {field: UPDATED_AT, direction: DESC}) {
         pageInfo { hasNextPage endCursor }
-        nodes { number updatedAt mergeCommit { oid } labels(first: 100) { nodes { name } } }
+        nodes {
+          number updatedAt mergedAt mergeCommit { oid }
+          timelineItems(itemTypes: [LABELED_EVENT, UNLABELED_EVENT], first: 100) {
+            nodes {
+              __typename
+              ... on LabeledEvent { createdAt label { name } }
+              ... on UnlabeledEvent { createdAt label { name } }
+            }
+          }
+        }
       }
     }
   }'
-  gh api graphql -f query="${query}" -F owner="${GH_REPO%/*}" -F name="${GH_REPO#*/}" \
-    -F first="${PR_QUERY_PAGE_SIZE}" -F after="${after}" \
-    --jq '.data.repository.pullRequests
-          | (.nodes[] | [.number, (.mergeCommit.oid // "null"), .updatedAt, ([.labels.nodes[].name] | join(","))] | @tsv),
-            (["PAGEINFO", (.pageInfo.hasNextPage | tostring), (.pageInfo.endCursor // "")] | @tsv)'
+  gh api graphql -f query="${query}" -f owner="${GH_REPO%/*}" -f name="${GH_REPO#*/}" \
+    -F first="${PR_QUERY_PAGE_SIZE}" "${cursor[@]}" \
+    --jq '
+      def labels_at_merge:
+        .mergedAt as $m
+        | [.timelineItems.nodes[] | select(.createdAt <= $m)]
+        | sort_by(.createdAt)
+        | reduce .[] as $e ([];
+            if $e.__typename == "LabeledEvent" then (. + [$e.label.name] | unique)
+            else (. - [$e.label.name]) end);
+      .data.repository.pullRequests
+      | (.nodes[] | [.number, (.mergeCommit.oid // "null"), .updatedAt, (labels_at_merge | tojson)] | @tsv),
+        (["PAGEINFO", (.pageInfo.hasNextPage | tostring), (.pageInfo.endCursor // "")] | @tsv)'
 }
 
 # The commit that landed PR $1 on main when GitHub records no merge commit:
-# the last commit of the PR (for a rebase merge the rebased commits keep
-# their identity only if unchanged, so this is a best effort; the label of
-# such a PR is also covered by PR_LABELS when it is the triggering PR).
+# the last commit of the PR, across all pages of its commit list.
 last_commit_of_pr() {
-  gh api "repos/${GH_REPO}/pulls/$1/commits" --jq '.[-1].sha'
+  gh api --paginate "repos/${GH_REPO}/pulls/$1/commits" --jq '.[].sha' | tail -n 1
 }
+
+# Seconds since the epoch for an ISO-8601 timestamp (any UTC offset).
+epoch() { date -u -d "$1" +%s; }
 
 # "<number>\t<labels>" for every PR merged into main whose landing commit
 # lies in $1..HEAD. Pages through merged PRs newest-updated first and stops
@@ -137,12 +162,14 @@ last_commit_of_pr() {
 # membership, so squash, merge, and rebase merges all count. Any API failure,
 # or running out of pages before coverage is proven, returns non-zero.
 merged_prs_in_range() {
-  local since="$1" since_date rows number oid updated labels after="" page=0 covered=0 has_next found=""
-  since_date=$(git log -1 --format=%cI "${since}")
+  local since="$1" since_epoch rows number oid updated labels after="" page=0 covered=0 has_next found=""
+  # Compare as epoch seconds: GitHub timestamps are UTC ("Z") while git
+  # keeps the commit's own offset, so the strings are not comparable.
+  since_epoch=$(git log -1 --format=%ct "${since}")
   while [ "${covered}" -eq 0 ]; do
     page=$((page + 1))
     if [ "${page}" -gt "${PR_QUERY_MAX_PAGES}" ]; then
-      echo "::error::More than $((PR_QUERY_MAX_PAGES * PR_QUERY_PAGE_SIZE)) merged pull requests updated since ${since_date}; cannot prove the range is covered" >&2
+      echo "::error::More than $((PR_QUERY_MAX_PAGES * PR_QUERY_PAGE_SIZE)) merged pull requests updated since the range start; cannot prove the range is covered" >&2
       return 1
     fi
     rows=$(merged_prs_page "${after}") || {
@@ -157,7 +184,7 @@ merged_prs_in_range() {
       if [ "${number}" = "PAGEINFO" ]; then
         has_next="${oid}"; after="${updated}"; continue
       fi
-      if [[ "${updated}" < "${since_date}" ]]; then covered=1; continue; fi
+      if [ "$(epoch "${updated}")" -lt "${since_epoch}" ]; then covered=1; continue; fi
       if [ "${oid}" = "null" ]; then
         oid=$(last_commit_of_pr "${number}") || {
           echo "::error::Could not read the commits of pull request #${number}" >&2
@@ -185,15 +212,16 @@ bump_level_since() {
   fi
   prs=$(merged_prs_in_range "${since}") || return 1
   echo "PRs merged since v$1: $(cut -f1 <<<"${prs}" | tr '\n' ' ')" >&2
-  labels=$(cut -f2 <<<"${prs}" | paste -sd, -)
-  # The triggering PR's labels as of the merge event: a label removed after
-  # the merge must not lower the bump it asked for. Its merge commit decides
-  # whether it belongs to this release (it may have shipped in an earlier
-  # one); without a merge commit to check, include the labels regardless.
+  # One JSON array of merge-time label names per PR, one per line.
+  labels=$(cut -f2 <<<"${prs}")
+  # The triggering PR's labels as of the merge event, as a second source for
+  # the same snapshot. Its merge commit decides whether it belongs to this
+  # release (it may have shipped in an earlier one); without a merge commit
+  # to check, include them regardless.
   if [ -z "${PR_MERGE_SHA}" ] || in_range "${PR_MERGE_SHA}" "${since}"; then
-    labels="${labels},${PR_LABELS}"
+    labels+=$'\n'"${PR_LABELS_JSON}"
   fi
-  untrusted python scripts/release.py level --labels "${labels}"
+  untrusted python scripts/release.py level <<<"${labels}"
 }
 
 # Expected artifact names for a version.
@@ -225,7 +253,7 @@ finish_release() {
   echo "Finishing release v${version}"
   git -c advice.detachedHead=false worktree add --quiet --detach "${work}/src" "v${version}"
   (cd "${work}/src" && untrusted ${RELEASE_BUILD_CMD} "${work}/dist")
-  twine check "${work}"/dist/*
+  untrusted twine check "${work}"/dist/*
   twine upload --non-interactive --skip-existing "${work}"/dist/*
   if ! gh release view "v${version}" >/dev/null 2>&1; then
     (cd "${work}/src" && untrusted python scripts/release.py notes "${version}") > "${work}/notes.md"

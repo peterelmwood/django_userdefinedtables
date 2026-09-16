@@ -13,10 +13,12 @@
     python scripts/release.py current
         Print the version currently in userdefinedtables/__init__.py.
 
-    python scripts/release.py level --labels "release:minor,bug,..."
-        Print the bump level implied by a comma-separated list of PR labels:
-        the highest of release:major / release:minor / release:patch present,
-        or ``patch`` when none is.
+    python scripts/release.py level < labels.jsonl
+        Print the bump level implied by PR labels read from stdin as JSON
+        arrays of label names, one array per line (labels may contain any
+        character, so no delimiter-based format is used): the highest of
+        release:major / release:minor / release:patch present, or ``patch``
+        when none is.
 
 The module has no third-party dependencies so the workflow can run it with
 a bare interpreter. Tests live in scripts/test_release.py.
@@ -24,6 +26,7 @@ a bare interpreter. Tests live in scripts/test_release.py.
 
 import argparse
 import datetime
+import json
 import pathlib
 import re
 import sys
@@ -55,12 +58,10 @@ def bump_version(version, level):
 def level_from_labels(labels):
     """Return the highest bump level named by ``release:<level>`` labels, defaulting to ``patch``.
 
-    ``labels`` may be an iterable of names or a single comma-separated string. Unknown labels,
-    including ``release:skip``, are ignored: skip only decides whether a merge triggers a run.
+    ``labels`` is an iterable of label names. Unknown labels, including ``release:skip``, are
+    ignored: skip only decides whether a merge triggers a run.
     """
-    if isinstance(labels, str):
-        labels = labels.split(",")
-    wanted = {label.strip()[len(LABEL_PREFIX) :] for label in labels if label.strip().startswith(LABEL_PREFIX)}
+    wanted = {label[len(LABEL_PREFIX) :] for label in labels if label.startswith(LABEL_PREFIX)}
     for level in LEVELS:  # ordered most to least significant
         if level in wanted:
             return level
@@ -145,8 +146,20 @@ def cmd_current(args):
     print(read_version(INIT_PATH.read_text()))
 
 
+def labels_from_jsonl(stream):
+    """Yield label names from lines that each hold a JSON array of strings (blank lines ignored)."""
+    for line in stream:
+        line = line.strip()
+        if not line:
+            continue
+        names = json.loads(line)
+        if not isinstance(names, list) or not all(isinstance(name, str) for name in names):
+            raise ValueError("expected a JSON array of strings per line, got {!r}".format(line))
+        yield from names
+
+
 def cmd_level(args):
-    print(level_from_labels(args.labels))
+    print(level_from_labels(labels_from_jsonl(sys.stdin)))
 
 
 def main(argv=None):
@@ -161,8 +174,7 @@ def main(argv=None):
     notes.set_defaults(func=cmd_notes)
     current = sub.add_parser("current", help="print the current version")
     current.set_defaults(func=cmd_current)
-    level = sub.add_parser("level", help="print the bump level implied by PR labels")
-    level.add_argument("--labels", default="", help="comma-separated label names")
+    level = sub.add_parser("level", help="print the bump level implied by PR labels read from stdin as JSON arrays")
     level.set_defaults(func=cmd_level)
     args = parser.parse_args(argv)
     args.func(args)

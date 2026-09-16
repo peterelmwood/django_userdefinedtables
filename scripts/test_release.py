@@ -1,5 +1,6 @@
 """Tests for scripts/release.py. Run with: python -m unittest discover -s scripts -p 'test_*.py'"""
 
+import io
 import pathlib
 import tempfile
 import unittest
@@ -40,18 +41,28 @@ class BumpVersionTests(unittest.TestCase):
 
 class LevelFromLabelsTests(unittest.TestCase):
     def test_defaults_to_patch(self):
-        self.assertEqual(release.level_from_labels(""), "patch")
         self.assertEqual(release.level_from_labels([]), "patch")
-        self.assertEqual(release.level_from_labels("bug,enhancement"), "patch")
+        self.assertEqual(release.level_from_labels(["bug", "enhancement"]), "patch")
 
     def test_picks_highest_level_across_labels(self):
-        self.assertEqual(release.level_from_labels("release:patch"), "patch")
-        self.assertEqual(release.level_from_labels("bug,release:minor"), "minor")
+        self.assertEqual(release.level_from_labels(["release:patch"]), "patch")
+        self.assertEqual(release.level_from_labels(["bug", "release:minor"]), "minor")
         self.assertEqual(release.level_from_labels(["release:minor", "release:major", "release:patch"]), "major")
 
-    def test_ignores_skip_and_whitespace(self):
-        self.assertEqual(release.level_from_labels("release:skip"), "patch")
-        self.assertEqual(release.level_from_labels(" release:minor , release:skip "), "minor")
+    def test_ignores_skip(self):
+        self.assertEqual(release.level_from_labels(["release:skip"]), "patch")
+        self.assertEqual(release.level_from_labels(["release:minor", "release:skip"]), "minor")
+
+    def test_label_names_are_not_split(self):
+        # A single label whose name happens to contain a comma is not two labels.
+        self.assertEqual(release.level_from_labels(["docs,release:major"]), "patch")
+
+    def test_labels_from_jsonl(self):
+        stream = io.StringIO('["bug", "docs,release:major"]\n\n["release:minor"]\n')
+        self.assertEqual(list(release.labels_from_jsonl(stream)), ["bug", "docs,release:major", "release:minor"])
+        self.assertEqual(release.level_from_labels(release.labels_from_jsonl(io.StringIO(stream.getvalue()))), "minor")
+        with self.assertRaises(ValueError):
+            list(release.labels_from_jsonl(io.StringIO('{"not": "a list"}\n')))
 
 
 class InitVersionTests(unittest.TestCase):

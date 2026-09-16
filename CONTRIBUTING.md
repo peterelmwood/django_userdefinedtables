@@ -104,7 +104,8 @@ Every pull request merged into `main` is released automatically by the
 `Release on merge to main` workflow (`.github/workflows/release.yml`). On merge it:
 
 1. Works out the bump level from the `release:*` labels of every pull request
-   merged since the last release (the highest wins):
+   merged since the last release, as they were when each was merged (the
+   highest wins):
    - `release:major` → `X.0.0`
    - `release:minor` → `X.Y.0`
    - `release:patch` (or no label) → `X.Y.Z`
