@@ -1,6 +1,9 @@
 """Tests for scripts/release.py. Run with: python -m unittest discover -s scripts -p 'test_*.py'"""
 
+import pathlib
+import tempfile
 import unittest
+from unittest import mock
 
 import release
 
@@ -100,6 +103,31 @@ class RollChangelogTests(unittest.TestCase):
         twice = release.roll_changelog(once, "0.0.15", "0.0.16", "2026-09-17")
         self.assertIn("## [Unreleased]\n\n## [0.0.16] - 2026-09-17\n\n" + release.EMPTY_SECTION_NOTE, twice)
         self.assertIn("## [0.0.15] - 2026-09-16\n\n### Added\n- A new thing", twice)
+
+
+class CmdBumpTests(unittest.TestCase):
+    def _run(self, changelog_text):
+        with tempfile.TemporaryDirectory() as tmp:
+            init = pathlib.Path(tmp, "__init__.py")
+            changelog = pathlib.Path(tmp, "CHANGELOG.md")
+            init.write_text(InitVersionTests.INIT)
+            changelog.write_text(changelog_text)
+            with mock.patch.object(release, "INIT_PATH", init), mock.patch.object(release, "CHANGELOG_PATH", changelog):
+                try:
+                    release.main(["bump", "patch", "--date", "2026-09-16"])
+                except RuntimeError:
+                    pass
+            return init.read_text(), changelog.read_text()
+
+    def test_writes_both_files(self):
+        init_text, changelog_text = self._run(CHANGELOG)
+        self.assertEqual(release.read_version(init_text), "0.0.15")
+        self.assertIn("## [0.0.15] - 2026-09-16", changelog_text)
+
+    def test_malformed_changelog_leaves_version_untouched(self):
+        init_text, changelog_text = self._run("# Changelog with no Unreleased section\n")
+        self.assertEqual(release.read_version(init_text), "0.0.14")
+        self.assertEqual(changelog_text, "# Changelog with no Unreleased section\n")
 
 
 class ReleaseNotesTests(unittest.TestCase):

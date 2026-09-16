@@ -128,8 +128,12 @@ def cmd_bump(args):
     old_version = read_version(init_text)
     new_version = bump_version(old_version, args.level)
     date = args.date or datetime.date.today().isoformat()
-    INIT_PATH.write_text(set_version(init_text, new_version))
-    CHANGELOG_PATH.write_text(roll_changelog(CHANGELOG_PATH.read_text(), old_version, new_version, date))
+    # Compute both files before writing either, so a malformed changelog cannot leave
+    # __version__ bumped on its own.
+    new_init = set_version(init_text, new_version)
+    new_changelog = roll_changelog(CHANGELOG_PATH.read_text(), old_version, new_version, date)
+    INIT_PATH.write_text(new_init)
+    CHANGELOG_PATH.write_text(new_changelog)
     print(new_version)
 
 
