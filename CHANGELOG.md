@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dropped support for Python 3.8 and 3.9 (EOL); added Python 3.13 and 3.14
 - Dropped support for Django 3.2, 4.0, 4.1 and 4.2 (EOL); minimum is now Django 5.2 LTS, added support for Django 6.0 and 6.1
 - `CheckConstraint` definitions now use `condition=` instead of the `check=` argument removed in Django 6.0
+- Example project switched from the unmaintained `django-bootstrap-v5` (which pins Django <5.0) to its successor `django-bootstrap5`; templates load `django_bootstrap5` instead of `bootstrap5`
 - Removed `django-bootstrap-v5` from package dependencies (it's only used in the example app)
 - Replaced wildcard import in `admin.py` with explicit imports for better code clarity
 - Updated Python version support: dropped Python 3.6 and 3.7 (EOL), added Python 3.11 and 3.12
