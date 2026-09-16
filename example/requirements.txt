@@ -1,10 +1,10 @@
 django
 
-# this item
-django_userdefinedtables
-
 # styling
 django-bootstrap5
+
+# this item
+django_userdefinedtables
 
 # dev tools
 Pillow

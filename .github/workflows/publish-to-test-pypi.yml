@@ -39,12 +39,6 @@ jobs:
     name: Publish distribution 📦 to TestPyPI
     runs-on: ubuntu-latest
     needs: build
-    environment:
-      name: testpypi
-      url: https://test.pypi.org/p/django_userdefinedtables
-    permissions:
-      # Required for PyPI Trusted Publishing (OIDC)
-      id-token: write
     steps:
       - name: Download distributions
         uses: actions/download-artifact@v4
@@ -54,5 +48,8 @@ jobs:
       - name: Publish distribution 📦 to TestPyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
+          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
           repository-url: https://test.pypi.org/legacy/
+          # main carries the version the release workflow last published, which
+          # TestPyPI may already have; treat that as success instead of a 400.
           skip-existing: true
