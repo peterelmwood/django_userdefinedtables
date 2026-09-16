@@ -2,10 +2,11 @@ from unittest import mock
 
 from django import forms
 from django.db import IntegrityError
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 
 from example.apps.userplayground.forms import AddColumnForm
+from example.apps.userplayground.views import COLUMN_NAME_CONSTRAINT, is_duplicate_column_name_error
 from userdefinedtables.models import Column, List, SingleLineOfTextColumn
 
 
@@ -45,6 +46,41 @@ class AddTableViewTests(TestCase):
         self.assertIn("name", form.errors)
         self.assertEqual(form["name"].value(), too_long_name)
         self.assertEqual(List.objects.count(), 0)
+
+
+class DuplicateColumnNameErrorTests(SimpleTestCase):
+    """is_duplicate_column_name_error must recognise the (name, list) violation on both supported backends"""
+
+    @staticmethod
+    def postgresql_error(constraint_name):
+        # psycopg (2 and 3) attach the violated constraint's name to the driver exception, which Django
+        # chains as __cause__ of its own IntegrityError.
+        driver_error = Exception('duplicate key value violates unique constraint "%s"' % constraint_name)
+        driver_error.diag = mock.Mock(constraint_name=constraint_name)
+        error = IntegrityError(str(driver_error))
+        error.__cause__ = driver_error
+        return error
+
+    def test_postgresql_name_constraint_is_recognised(self):
+        self.assertTrue(is_duplicate_column_name_error(self.postgresql_error(COLUMN_NAME_CONSTRAINT.name)))
+
+    def test_postgresql_other_constraint_is_not_recognised(self):
+        self.assertFalse(
+            is_duplicate_column_name_error(self.postgresql_error("Two Columns cannot occupy the same index."))
+        )
+
+    def test_sqlite_name_constraint_is_recognised(self):
+        message = "UNIQUE constraint failed: userdefinedtables_column.name, userdefinedtables_column.list_id"
+        self.assertTrue(is_duplicate_column_name_error(IntegrityError(message)))
+
+    def test_sqlite_other_failures_are_not_recognised(self):
+        self.assertFalse(
+            is_duplicate_column_name_error(
+                IntegrityError("NOT NULL constraint failed: userdefinedtables_lookupcolumn.lookup_list_id")
+            )
+        )
+        index_message = "UNIQUE constraint failed: userdefinedtables_column.list_id, userdefinedtables_column.index"
+        self.assertFalse(is_duplicate_column_name_error(IntegrityError(index_message)))
 
 
 class AddColumnViewTests(TestCase):

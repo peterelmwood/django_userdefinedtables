@@ -88,7 +88,9 @@ def add_column(request, list_pk=None):
             )
             # The form already rejects names that exist in this list, but a concurrent request can insert
             # the same name between that check and the save. Lock the list row so column creation through
-            # this view is serialised per list, then re-check under the lock.
+            # this view is serialised per list, then re-check under the lock. This relies on PostgreSQL,
+            # which the example runs on; SQLite (used only by test_settings.py) ignores select_for_update()
+            # and may raise OperationalError ("database is locked") under real write concurrency instead.
             with transaction.atomic():
                 List.objects.select_for_update().get(pk=my_list.pk)
                 if my_list.columns.filter(name=column.name).exists():
