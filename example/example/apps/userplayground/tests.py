@@ -1,6 +1,10 @@
+from unittest import mock
+
+from django import forms
 from django.test import TestCase
 from django.urls import reverse
 
+from example.apps.userplayground.forms import AddColumnForm
 from userdefinedtables.models import Column, List, SingleLineOfTextColumn
 
 
@@ -50,12 +54,16 @@ class AddColumnViewTests(TestCase):
         self.valid_data = {"column": "0", "name": "Test Column", "description": "", "required": False, "unique": False}
 
     def test_get_add_column_renders_form(self):
-        """GET request should render an unbound form with existing columns"""
+        """GET request should render an unbound form with existing columns and a default column type"""
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "<form")
-        self.assertFalse(response.context["form"].is_bound)
         self.assertIn("columns", response.context)
+
+        form = response.context["form"]
+        self.assertFalse(form.is_bound)
+        # The first column type (SingleLineOfTextColumn) is pre-selected
+        self.assertEqual(form["column"].value(), "0")
 
     def test_post_valid_data_creates_column_and_redirects(self):
         """POST with valid data should create the selected column subtype and redirect back to the page"""
@@ -115,6 +123,21 @@ class AddColumnViewTests(TestCase):
         SingleLineOfTextColumn.objects.create(name="Test Column", list=self.test_list)
 
         response = self.client.post(self.url, self.valid_data)
+        self.assertEqual(response.status_code, 200)
+
+        form = response.context["form"]
+        self.assertTrue(form.is_bound)
+        self.assertIn("name", form.errors)
+        self.assertEqual(self.test_list.columns.count(), 1)
+
+    def test_post_duplicate_column_name_racing_insert_renders_form_with_errors(self):
+        """A duplicate inserted between the form's check and the save should still become a form error"""
+        SingleLineOfTextColumn.objects.create(name="Test Column", list=self.test_list)
+
+        # Bypass the form's own duplicate check to simulate a concurrent request that inserted the same
+        # name after validation passed, leaving the model's unique constraint as the only guard.
+        with mock.patch.object(AddColumnForm, "clean", forms.ModelForm.clean):
+            response = self.client.post(self.url, self.valid_data)
         self.assertEqual(response.status_code, 200)
 
         form = response.context["form"]

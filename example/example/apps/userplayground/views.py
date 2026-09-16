@@ -3,6 +3,7 @@ from django.views import generic
 from django.views.decorators.csrf import csrf_protect
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import IntegrityError, transaction
 
 from example.apps.userplayground.forms import AddColumnForm, AddTableForm
 from userdefinedtables.models import COLUMN_TYPES, ENTRY_TYPES, List, Row
@@ -60,11 +61,20 @@ def add_column(request, list_pk=None):
                 unique=form.cleaned_data.get("unique", False),
                 list=my_list,
             )
-            column.save()
-            messages.success(request, f"Column '{column.name}' added successfully!")
-            return redirect("add_column", list_pk=list_pk)
+            try:
+                # The form already rejects names that exist in this list, but a concurrent request can
+                # insert the same name between that check and this save. The model's unique constraint
+                # is the final guard, so translate its violation back into a form error instead of a 500.
+                with transaction.atomic():
+                    column.save()
+            except IntegrityError:
+                form.add_error("name", f"A column named '{column.name}' already exists in this list.")
+            else:
+                messages.success(request, f"Column '{column.name}' added successfully!")
+                return redirect("add_column", list_pk=list_pk)
     else:
-        form = AddColumnForm(initial={COLUMN_TYPES[0]._meta.object_name: "Yes"}, list=my_list)
+        # Pre-select the first column type (choices are indexed into COLUMN_TYPES)
+        form = AddColumnForm(initial={"column": "0"}, list=my_list)
     # An invalid POST falls through and re-renders the bound form with its errors
     return render(request, "add_column.html", context={"form": form, "columns": columns, "list": my_list})
 
