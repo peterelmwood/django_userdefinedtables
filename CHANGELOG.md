@@ -15,7 +15,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - pre-commit hooks updated and now include ruff, `uv lock` and django-upgrade
   - CI now uses uv, fails on lint findings, and tests an explicit Python x Django matrix
   - PyPI and TestPyPI publishing use Trusted Publishing (OIDC) instead of API token secrets, are gated on the test workflow, and TestPyPI publishing only runs on `main`
-  - Added Dependabot configuration for GitHub Actions and Python dependencies
 - Dropped support for Python 3.8 and 3.9 (EOL); added Python 3.13 and 3.14
 - Dropped support for Django 3.2, 4.0, 4.1 and 4.2 (EOL); minimum is now Django 5.2 LTS, added support for Django 6.0 and 6.1
 - `CheckConstraint` definitions now use `condition=` instead of the `check=` argument removed in Django 6.0
@@ -24,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated Python version support: dropped Python 3.6 and 3.7 (EOL), added Python 3.11 and 3.12
 - Updated Django version support: minimum version is now Django 3.2 LTS, added support for Django 4.1 and 4.2
 - Improved code quality with consistent formatting
+- Bumped `pre-commit/pre-commit-hooks` from v3.4.0 to v6.0.0
 - Updated GitHub Actions workflows to test on Python 3.12 and use proper test settings
 - Enhanced package metadata with project URLs and better configuration
 - Improved package initialization with docstring and better exports
@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deprecated `default_app_config` attribute (removed in Django 5.0, no longer needed with Django 3.2+)
 
 ### Added
+- Dependabot configuration for GitHub Actions, uv (library and dev tooling), pip (example project), and Docker dependencies, capped at 5 open PRs per ecosystem
 - CHANGELOG.md to track project changes
 - CONTRIBUTING.md with development guidelines and contribution instructions
 - Proper test settings configuration for easier development

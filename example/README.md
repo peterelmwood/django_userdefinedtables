@@ -72,6 +72,23 @@ docker run --publish 8001:8000 \
    python manage.py runserver 8001
    ```
 
+## Running the Tests
+
+The example project's tests use `example/test_settings.py`, which swaps PostgreSQL for SQLite so no
+database server is needed. The example is a standalone Django project whose packages are imported
+relative to the `example/` directory (for instance `example.apps.userplayground`), so the tests must be
+run from that directory. `PYTHONPATH=..` makes the `userdefinedtables` package from this repository
+importable without installing it:
+
+```bash
+cd example
+PYTHONPATH=.. python manage.py test example.apps.userplayground --settings=test_settings
+```
+
+This is the same command the CI workflows run. Running `manage.py test` from the repository root uses
+the root `test_settings.py`, which only covers the `userdefinedtables` package and cannot serve the
+example's views.
+
 ## Exploring the Example
 
 Once running, you can:

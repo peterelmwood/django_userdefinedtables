@@ -28,17 +28,29 @@ This project uses [uv](https://docs.astral.sh/uv/) for environment and dependenc
 
 ## Running Tests
 
-Run the test suite using Django's test runner:
+Run the package's test suite using Django's test runner from the repository root:
 
 ```bash
-DJANGO_SETTINGS_MODULE=test_settings uv run manage.py test
+DJANGO_SETTINGS_MODULE=test_settings uv run manage.py test userdefinedtables
 ```
+
+The `userdefinedtables` label matters: an unscoped run also discovers the example project's tests,
+which cannot run under the root `test_settings.py`.
+
+The example project has its own tests and settings. Run them from the `example/` directory:
+
+```bash
+cd example
+uv run --project .. manage.py test example.apps.userplayground --settings=test_settings
+```
+
+See [example/README.md](example/README.md#running-the-tests) for details. CI runs both commands.
 
 To test against a specific Django version, install it into the environment first:
 
 ```bash
 uv pip install "Django~=6.0.0"
-DJANGO_SETTINGS_MODULE=test_settings uv run --no-sync manage.py test
+DJANGO_SETTINGS_MODULE=test_settings uv run --no-sync manage.py test userdefinedtables
 ```
 
 ## Code Style
@@ -104,6 +116,34 @@ This produces an sdist and a wheel in `dist/`. The version is read from `userdef
 - Ensure all tests pass
 - Update CHANGELOG.md under the [Unreleased] section
 - Keep changes focused - one feature/fix per PR when possible
+
+## Dependency Updates
+
+Dependency bumps are raised automatically by [Dependabot](https://docs.github.com/en/code-security/dependabot)
+according to `.github/dependabot.yml`. It watches the GitHub Actions workflows, the Python requirements for the
+library and the example project, and the example project's Docker base image, and opens at most five pull requests
+per ecosystem at a time.
+
+Please review and merge those pull requests rather than opening manual version bumps. The one exception is
+`.pre-commit-config.yaml`, which Dependabot does not manage; refresh it with:
+
+```bash
+pre-commit autoupdate
+```
+
+## Dependency Updates
+
+Dependency bumps are raised automatically by [Dependabot](https://docs.github.com/en/code-security/dependabot)
+according to `.github/dependabot.yml`. It watches the GitHub Actions workflows, `pyproject.toml`/`uv.lock` for the
+library and its development tooling, the example project's `requirements.txt`, and the example project's Docker base
+image, and opens at most five pull requests per ecosystem at a time.
+
+Please review and merge those pull requests rather than opening manual version bumps. The one exception is
+`.pre-commit-config.yaml`, which Dependabot does not manage; refresh it with:
+
+```bash
+uv run pre-commit autoupdate
+```
 
 ## Reporting Issues
 

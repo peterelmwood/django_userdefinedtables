@@ -45,8 +45,13 @@ Changelog = "https://github.com/peterelmwood/django_userdefinedtables/blob/main/
 test = [
     "model-bakery",
 ]
+# Needed to run the example project's tests (example/test_settings.py loads the bootstrap5 app)
+example = [
+    "django-bootstrap-v5",
+]
 dev = [
     { include-group = "test" },
+    { include-group = "example" },
     "pre-commit",
     "ruff",
 ]
@@ -64,6 +69,8 @@ include = ["userdefinedtables*"]
 
 [tool.uv]
 default-groups = ["dev"]
+# django-bootstrap-v5 (example group) declares Django<5.0 but works on current Django; its metadata is stale.
+override-dependencies = ["Django>=5.2"]
 
 [tool.ruff]
 line-length = 120

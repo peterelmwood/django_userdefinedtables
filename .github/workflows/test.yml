@@ -60,14 +60,17 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          uv sync --locked --no-default-groups --group test
+          uv sync --locked --no-default-groups --group test --group example
           uv pip install "Django~=${{ matrix.django-version }}.0"
       - name: Show resolved versions
         run: uv run --no-sync python -c "import sys, django; print(sys.version); print('Django', django.get_version())"
       - name: Run Django tests
-        run: uv run --no-sync manage.py test
+        run: uv run --no-sync manage.py test userdefinedtables
         env:
           DJANGO_SETTINGS_MODULE: test_settings
+      - name: Run example project tests
+        working-directory: example
+        run: uv run --no-sync --project .. manage.py test example.apps.userplayground --settings=test_settings
 
   build:
     name: Build distribution
