@@ -3,13 +3,24 @@
 {% load bootstrap5 %}
 
 {% block content %}
-    <h3 id="add_table">A table simply needs a name.</h3>
+    <h3>Create a New Table</h3>
+    
+    <div class="mb-3">
+        <a href="{% url 'playground' %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Home
+        </a>
+    </div>
+    
+    <p class="text-muted">
+        A table simply needs a name to get started. After creating it, you can add columns to define its structure.
+    </p>
+    
     <form action="" method="post" class="form">
         {% csrf_token %}
         {% bootstrap_form form %}
 
         {% buttons %}
-            <button type="submit" class="btn btn-primary">Submit</button>
+            <button type="submit" class="btn btn-primary">Create Table</button>
             <a href="{% url "playground" %}" class="btn btn-secondary">Cancel</a>
         {% endbuttons %}
     </form>
