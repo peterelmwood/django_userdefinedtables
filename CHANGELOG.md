@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated Python version support: dropped Python 3.6 and 3.7 (EOL), added Python 3.11 and 3.12
 - Updated Django version support: minimum version is now Django 3.2 LTS, added support for Django 4.1 and 4.2
 - Improved code quality with consistent formatting
+- Bumped `pre-commit/pre-commit-hooks` from v3.4.0 to v5.0.0
 - Updated GitHub Actions workflows to test on Python 3.12 and use proper test settings
 - Enhanced package metadata with project URLs and better configuration
 - Improved package initialization with docstring and better exports
@@ -22,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deprecated `default_app_config` attribute (removed in Django 5.0, no longer needed with Django 3.2+)
 
 ### Added
+- Dependabot configuration for GitHub Actions, Python (library and example), and Docker dependencies, capped at 5 open PRs per ecosystem
 - CHANGELOG.md to track project changes
 - CONTRIBUTING.md with development guidelines and contribution instructions
 - Proper test settings configuration for easier development
