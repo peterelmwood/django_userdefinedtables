@@ -88,7 +88,8 @@ coverage.xml
 .ipynb_checkpoints
 
 # pyenv
-.python-version
+# .python-version is committed so uv picks up the project default interpreter
+# .python-version
 
 # celery
 celerybeat-schedule.*
@@ -135,3 +136,7 @@ GitHub.sublime-settings
 !.vscode/launch.json
 !.vscode/extensions.json
 .history
+
+# uv / ruff #
+.venv/
+.ruff_cache/

@@ -1,15 +1,103 @@
 [build-system]
-requires = ["setuptools>=45", "wheel"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
-[tool.black]
-line-length = 120
-include = '\.pyi?$'
+[project]
+name = "django_userdefinedtables"
+dynamic = ["version"]
+description = "Generic EAV-style table creation in the user's hands"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [{ name = "Peter Wood", email = "peterelmwood@gmail.com" }]
+maintainers = [{ name = "Peter Wood", email = "peterelmwood@gmail.com" }]
+dependencies = [
+    "Django>=5.2",
+    "Pillow",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Framework :: Django",
+    "Framework :: Django :: 5.2",
+    "Framework :: Django :: 6.0",
+    "Framework :: Django :: 6.1",
+]
 
-[tool.isort]
-profile = "black"
-multi_line_output = 3
-line_length = 120
-default_section = "THIRDPARTY"
-known_third_party = []
-known_first_party = ["userdefinedtables"]
+[project.urls]
+Homepage = "https://github.com/peterelmwood/django_userdefinedtables"
+Documentation = "https://github.com/peterelmwood/django_userdefinedtables#readme"
+"Source Code" = "https://github.com/peterelmwood/django_userdefinedtables"
+"Bug Tracker" = "https://github.com/peterelmwood/django_userdefinedtables/issues"
+Changelog = "https://github.com/peterelmwood/django_userdefinedtables/blob/main/CHANGELOG.md"
+
+[dependency-groups]
+test = [
+    "model-bakery",
+]
+# Needed to run the example project's tests (example/test_settings.py loads the django_bootstrap5 app)
+example = [
+    "django-bootstrap5",
+]
+dev = [
+    { include-group = "test" },
+    { include-group = "example" },
+    "pre-commit",
+    "ruff",
+]
+
+[tool.setuptools]
+zip-safe = false
+
+[tool.setuptools.dynamic]
+# Read statically from the literal in userdefinedtables/__init__.py; the package is
+# never imported at build time, so isolated builds work (see #20).
+version = { attr = "userdefinedtables.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["userdefinedtables*"]
+
+[tool.uv]
+default-groups = ["dev"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+extend-exclude = ["migrations"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "DJ",  # flake8-django
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+    "RUF", # ruff-specific rules
+]
+ignore = [
+    "DJ008",  # models without __str__: adding them is a behaviour change, out of scope for tooling
+    "RUF012", # mutable class attributes: idiomatic in Django (Meta options, fields lists, etc.)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+# The example app intentionally uses ModelForm.exclude; switching to an explicit fields list
+# is a behaviour change, not a tooling change.
+"example/example/apps/userplayground/forms.py" = ["DJ006"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["userdefinedtables"]

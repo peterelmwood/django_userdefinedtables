@@ -1,0 +1,106 @@
+name: Release on merge to main
+
+# Every pull request merged into main becomes a release:
+#   1. work out the bump level from the release:* labels of every PR merged
+#      since the last release (highest wins; patch when none; release:skip on
+#      the merged PR means its merge does not start a run, its changes ride the
+#      next one),
+#   2. bump __version__ and roll the CHANGELOG "Unreleased" section,
+#   3. push that commit and the vX.Y.Z tag to main atomically,
+#   4. build, publish to PyPI, and create a GitHub release with the changelog
+#      section as its notes.
+#
+# The work is done by scripts/release.sh, which is idempotent end to end: it
+# first completes any release whose earlier run failed after the push (even if
+# main has moved on since), then cuts a new release only if something has
+# merged since the last one, retrying from a fresh origin/main if the atomic
+# push is rejected. So a dropped or failed run never loses a merge or a label,
+# and re-running the workflow is always safe.
+#
+# pull_request_target (not pull_request) is used so the job has the repository
+# secrets and a writable token even when the PR came from a fork. The job only
+# ever checks out and runs code from main, never the PR head, so nothing from
+# an unmerged or fork PR runs with credentials.
+#
+# Trust model: main is the trusted branch. Everything this job releases to
+# PyPI is main's code, and this workflow file itself is read from main, so
+# code that can be merged into main is trusted by definition; the checks that
+# gate a merge (review, CI) are the security boundary. The credential
+# handling below is defence in depth against accidental leaks, not against a
+# malicious merge: credentials are set on the release step only, the checkout
+# does not persist its token, scripts/release.sh authenticates only the
+# specific fetch and push commands, and it strips every credential from the
+# environment of the build backend, setup.py, and scripts/release.py.
+
+on:
+  pull_request_target:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: read
+  # The label-history fallback reads the issue events endpoint.
+  issues: read
+
+jobs:
+  release:
+    name: Bump version, tag, and publish to PyPI
+    if: github.event.pull_request.merged == true && !contains(github.event.pull_request.labels.*.name, 'release:skip')
+    runs-on: ubuntu-latest
+    # Serialise releases. This is job-level (not workflow-level) so that a
+    # release:skip merge, whose job never queues, cannot displace a pending
+    # release run. GitHub keeps at most one pending job per group and drops
+    # older pending ones; that is fine because whichever run executes
+    # releases everything merged since the last release (see above).
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    env:
+      GH_REPO: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      # Labels as they were when the PR was merged (a JSON array, so names
+      # with commas survive), so a later relabel cannot change the bump this
+      # merge asked for.
+      PR_LABELS_JSON: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+      # Its merge commit, so the script can tell whether this PR belongs to
+      # the release being cut or already shipped in an earlier one.
+      PR_MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+          # Do not leave the token in .git/config where repository code could
+          # read it; scripts/release.sh authenticates its own fetch and push.
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Install build tooling
+        run: uv pip install --system build twine
+
+      - name: Run release script tests
+        run: python -m unittest discover -s scripts -p 'test_*.py'
+
+      # scripts/release.sh finishes any release that was started but not
+      # completed, then bumps/tags/pushes/publishes a new one if anything has
+      # merged since. Every step is idempotent, so re-running this workflow
+      # after a failure is always safe. See the script header for details.
+      #
+      # The credentials are set only for this step, and the script strips
+      # them from the environment of every command that runs repository code
+      # (the build backend, setup.py, scripts/release.py); only twine, gh, and
+      # the script's own authenticated git fetch/push see them.
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: bash scripts/release.sh
