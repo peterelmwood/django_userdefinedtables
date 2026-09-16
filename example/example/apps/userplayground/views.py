@@ -3,10 +3,35 @@ from django.views import generic
 from django.views.decorators.csrf import csrf_protect
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import transaction
+from django.db import IntegrityError, transaction
 
 from example.apps.userplayground.forms import AddColumnForm, AddTableForm
-from userdefinedtables.models import COLUMN_TYPES, ENTRY_TYPES, List, Row
+from userdefinedtables.models import COLUMN_TYPES, ENTRY_TYPES, Column, List, Row
+
+
+# The UniqueConstraint on Column that forbids two columns with the same name in one list
+COLUMN_NAME_CONSTRAINT = next(
+    constraint for constraint in Column._meta.constraints if tuple(constraint.fields) == ("name", "list")
+)
+
+
+def is_duplicate_column_name_error(exc):
+    """
+    Return True if the IntegrityError is a violation of the (name, list) uniqueness constraint on Column.
+
+    PostgreSQL reports the violated constraint by name through the driver's diagnostics. SQLite has no
+    constraint names and instead lists the columns of the failed UNIQUE index in the message.
+    """
+    diag = getattr(exc.__cause__, "diag", None)
+    constraint_name = getattr(diag, "constraint_name", None)
+    if constraint_name:
+        return constraint_name == COLUMN_NAME_CONSTRAINT.name
+    message = str(exc)
+    return "UNIQUE constraint failed" in message and f"{Column._meta.db_table}.name" in message
+
+
+def add_duplicate_column_name_error(form, column):
+    form.add_error("name", f"A column named '{column.name}' already exists in this list.")
 
 
 def get_column_type_instance(column):
@@ -62,18 +87,30 @@ def add_column(request, list_pk=None):
                 list=my_list,
             )
             # The form already rejects names that exist in this list, but a concurrent request can insert
-            # the same name between that check and the save. Lock the list row so column creation for one
-            # list is serialised, then re-check under the lock. The model's unique constraint stays as the
-            # final guard, and an IntegrityError from any other cause (for example a column type whose
-            # required fields this form does not collect) propagates instead of being guessed at.
+            # the same name between that check and the save. Lock the list row so column creation through
+            # this view is serialised per list, then re-check under the lock.
             with transaction.atomic():
                 List.objects.select_for_update().get(pk=my_list.pk)
                 if my_list.columns.filter(name=column.name).exists():
-                    form.add_error("name", f"A column named '{column.name}' already exists in this list.")
+                    add_duplicate_column_name_error(form, column)
                 else:
-                    column.save()
-                    messages.success(request, f"Column '{column.name}' added successfully!")
-                    return redirect("add_column", list_pk=list_pk)
+                    # A writer that does not take the list lock (the admin, the model API, or any caller
+                    # on SQLite where select_for_update() is a no-op) can still slip a duplicate in after
+                    # the re-check, so the model's unique constraint remains the final guard. Save in a
+                    # savepoint so a failed insert does not poison the outer transaction, and translate
+                    # only a confirmed (name, list) violation into a form error; any other integrity
+                    # failure (for example a column type whose required fields this form does not
+                    # collect) propagates untouched.
+                    try:
+                        with transaction.atomic():
+                            column.save()
+                    except IntegrityError as exc:
+                        if not is_duplicate_column_name_error(exc):
+                            raise
+                        add_duplicate_column_name_error(form, column)
+                    else:
+                        messages.success(request, f"Column '{column.name}' added successfully!")
+                        return redirect("add_column", list_pk=list_pk)
     else:
         # Pre-select the first column type (choices are indexed into COLUMN_TYPES)
         form = AddColumnForm(initial={"column": "0"}, list=my_list)

@@ -131,13 +131,13 @@ class AddColumnViewTests(TestCase):
         self.assertIn("name", form.errors)
         self.assertEqual(self.test_list.columns.count(), 1)
 
-    def test_post_duplicate_column_name_inserted_after_validation_renders_form_with_errors(self):
-        """A same-named column inserted after the form validated should still become a form error"""
+    def test_post_duplicate_column_name_inserted_after_validation_is_caught_by_locked_recheck(self):
+        """A same-named column inserted after form validation is caught by the view's re-check under the lock"""
         original_clean = AddColumnForm.clean
 
         def clean_then_insert_duplicate(form):
             cleaned_data = original_clean(form)
-            # Simulate a concurrent request winning the race between validation and save
+            # Simulate a concurrent request winning the race between validation and the locked re-check
             SingleLineOfTextColumn.objects.create(name="Test Column", list=self.test_list)
             return cleaned_data
 
@@ -149,6 +149,28 @@ class AddColumnViewTests(TestCase):
         self.assertTrue(form.is_bound)
         self.assertIn("name", form.errors)
         self.assertEqual(self.test_list.columns.count(), 1)
+
+    def test_post_duplicate_column_name_inserted_after_recheck_is_translated_from_save_failure(self):
+        """A duplicate that lands after the re-check makes the save violate the unique constraint, which
+        the view translates into a form error rather than a 500"""
+        original_save = SingleLineOfTextColumn.save
+
+        def insert_duplicate_then_save(column, *args, **kwargs):
+            # Simulate a writer that does not take the list lock (for example the admin) winning the race
+            # after the re-check. Creating a base Column avoids recursing into this patched save.
+            Column.objects.create(name=column.name, list=column.list)
+            return original_save(column, *args, **kwargs)
+
+        with mock.patch.object(SingleLineOfTextColumn, "save", insert_duplicate_then_save):
+            response = self.client.post(self.url, self.valid_data)
+        self.assertEqual(response.status_code, 200)
+
+        form = response.context["form"]
+        self.assertTrue(form.is_bound)
+        self.assertIn("name", form.errors)
+        # The view's own insert was rolled back. (The simulated writer's row is rolled back too, because
+        # this test shares one transaction with the view; a real concurrent writer commits separately.)
+        self.assertEqual(SingleLineOfTextColumn.objects.count(), 0)
 
     def test_post_other_integrity_error_is_not_reported_as_duplicate_name(self):
         """An integrity failure that is not a name clash must propagate rather than show a false name error"""
