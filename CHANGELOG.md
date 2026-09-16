@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.15] - 2026-09-16
+
 ### Changed
 - Removed `django-bootstrap-v5` from package dependencies (it's only used in the example app)
 - Replaced wildcard import in `admin.py` with explicit imports for better code clarity
@@ -24,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deprecated `default_app_config` attribute (removed in Django 5.0, no longer needed with Django 3.2+)
 
 ### Added
+- Automatic releases: every merge to `main` bumps the version (level chosen by a `release:*` PR label, patch by default), tags it, publishes to PyPI, and creates a GitHub release
 - Dependabot configuration for GitHub Actions, Python (library and example), and Docker dependencies, capped at 5 open PRs per ecosystem
 - CHANGELOG.md to track project changes
 - CONTRIBUTING.md with development guidelines and contribution instructions
@@ -43,5 +46,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multi-table inheritance for simplified querying
 - Comprehensive test suite
 
-[Unreleased]: https://github.com/peterelmwood/django_userdefinedtables/compare/v0.0.14...HEAD
+[Unreleased]: https://github.com/peterelmwood/django_userdefinedtables/compare/v0.0.15...HEAD
+[0.0.15]: https://github.com/peterelmwood/django_userdefinedtables/compare/v0.0.14...v0.0.15
 [0.0.14]: https://github.com/peterelmwood/django_userdefinedtables/releases/tag/v0.0.14
