@@ -62,12 +62,16 @@ tag_exists() { git rev-parse -q --verify "refs/tags/v$1" >/dev/null; }
 head_subject() { git log -1 --format=%s "${1:-HEAD}"; }
 is_release_commit() { [ "$(head_subject "${2:-HEAD}")" = "Release v$1" ]; }
 
-# Numbers of every PR associated with a commit in the given revision range.
+# Numbers of every PR merged into main that is associated with a commit in
+# the given revision range. The commits API also lists open PRs and PRs
+# against other bases that happen to contain the commit; those are filtered
+# out so only merged main PRs contribute release labels.
 # Any API failure makes this return non-zero, which aborts the run.
 prs_in_range() {
   local sha found="" numbers
   for sha in $(git rev-list "$1"); do
-    numbers=$(gh api "repos/${GH_REPO}/commits/${sha}/pulls" --jq '.[].number') || {
+    numbers=$(gh api "repos/${GH_REPO}/commits/${sha}/pulls" \
+      --jq '.[] | select(.merged_at != null and .base.ref == "main") | .number') || {
       echo "::error::Could not list pull requests for commit ${sha}" >&2
       return 1
     }
