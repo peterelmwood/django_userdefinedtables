@@ -1,6 +1,7 @@
 from unittest import mock
 
 from django import forms
+from django.db import IntegrityError
 from django.test import TestCase
 from django.urls import reverse
 
@@ -144,6 +145,14 @@ class AddColumnViewTests(TestCase):
         self.assertTrue(form.is_bound)
         self.assertIn("name", form.errors)
         self.assertEqual(self.test_list.columns.count(), 1)
+
+    def test_post_other_integrity_error_is_not_reported_as_duplicate_name(self):
+        """An integrity failure that is not a name clash must propagate rather than show a false name error"""
+        # Index 8 in COLUMN_TYPES is LookupColumn, whose required lookup_list and lookup_column
+        # fields are not collected by AddColumnForm, so saving it violates a NOT NULL constraint.
+        with self.assertRaises(IntegrityError):
+            self.client.post(self.url, {**self.valid_data, "column": "8"})
+        self.assertEqual(self.test_list.columns.count(), 0)
 
     def test_post_duplicate_column_name_in_other_list_is_allowed(self):
         """The name uniqueness check is per list, so the same name may be used in another list"""

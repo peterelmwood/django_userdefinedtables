@@ -68,6 +68,11 @@ def add_column(request, list_pk=None):
                 with transaction.atomic():
                     column.save()
             except IntegrityError:
+                # Only report a duplicate when one actually exists now; any other integrity failure
+                # (for example a column type whose required fields this form does not collect) is
+                # not the user's doing and must not be misreported as a name clash.
+                if not my_list.columns.filter(name=column.name).exists():
+                    raise
                 form.add_error("name", f"A column named '{column.name}' already exists in this list.")
             else:
                 messages.success(request, f"Column '{column.name}' added successfully!")
