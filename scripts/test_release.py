@@ -35,6 +35,22 @@ class BumpVersionTests(unittest.TestCase):
             release.bump_version("0.0.14", "huge")
 
 
+class LevelFromLabelsTests(unittest.TestCase):
+    def test_defaults_to_patch(self):
+        self.assertEqual(release.level_from_labels(""), "patch")
+        self.assertEqual(release.level_from_labels([]), "patch")
+        self.assertEqual(release.level_from_labels("bug,enhancement"), "patch")
+
+    def test_picks_highest_level_across_labels(self):
+        self.assertEqual(release.level_from_labels("release:patch"), "patch")
+        self.assertEqual(release.level_from_labels("bug,release:minor"), "minor")
+        self.assertEqual(release.level_from_labels(["release:minor", "release:major", "release:patch"]), "major")
+
+    def test_ignores_skip_and_whitespace(self):
+        self.assertEqual(release.level_from_labels("release:skip"), "patch")
+        self.assertEqual(release.level_from_labels(" release:minor , release:skip "), "minor")
+
+
 class InitVersionTests(unittest.TestCase):
     INIT = '"""doc"""\n\n__version__ = "0.0.14"\n\nVERSION = __version__\n'
 

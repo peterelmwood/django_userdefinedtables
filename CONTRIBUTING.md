@@ -103,16 +103,21 @@ pre-commit autoupdate
 Every pull request merged into `main` is released automatically by the
 `Release on merge to main` workflow (`.github/workflows/release.yml`). On merge it:
 
-1. Reads the bump level from the pull request's labels:
+1. Works out the bump level from the `release:*` labels of every pull request
+   merged since the last release (the highest wins):
    - `release:major` → `X.0.0`
    - `release:minor` → `X.Y.0`
    - `release:patch` (or no label) → `X.Y.Z`
-   - `release:skip` → no release for this merge
+   - `release:skip` on the merged PR → its merge does not start a release; the
+     changes ship with the next one
 2. Bumps `__version__` in `userdefinedtables/__init__.py` and moves the
    `[Unreleased]` section of `CHANGELOG.md` under the new version.
 3. Commits that to `main` and tags it `vX.Y.Z`.
 4. Builds the package, publishes it to PyPI, and creates a GitHub release using
    the changelog section as the release notes.
+
+The workflow is safe to re-run: if a run fails after the version commit has
+landed on `main`, re-running it resumes that version rather than bumping again.
 
 So: do not edit `__version__` in a pull request, keep your changes listed under
 `[Unreleased]` in `CHANGELOG.md`, and add a `release:*` label if the default

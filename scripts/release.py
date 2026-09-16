@@ -10,6 +10,14 @@
         Print the CHANGELOG.md section for ``version`` (used as the GitHub
         release body).
 
+    python scripts/release.py current
+        Print the version currently in userdefinedtables/__init__.py.
+
+    python scripts/release.py level --labels "release:minor,bug,..."
+        Print the bump level implied by a comma-separated list of PR labels:
+        the highest of release:major / release:minor / release:patch present,
+        or ``patch`` when none is.
+
 The module has no third-party dependencies so the workflow can run it with
 a bare interpreter. Tests live in scripts/test_release.py.
 """
@@ -26,6 +34,7 @@ CHANGELOG_PATH = ROOT / "CHANGELOG.md"
 REPO_URL = "https://github.com/peterelmwood/django_userdefinedtables"
 
 LEVELS = ("major", "minor", "patch")
+LABEL_PREFIX = "release:"
 VERSION_RE = re.compile(r'^__version__ = "(?P<version>\d+\.\d+\.\d+)"$', re.M)
 UNRELEASED_HEADING = "## [Unreleased]"
 EMPTY_SECTION_NOTE = "- Maintenance release with no user-facing changes."
@@ -41,6 +50,21 @@ def bump_version(version, level):
     if level == "minor":
         return "{}.{}.0".format(major, minor + 1)
     return "{}.{}.{}".format(major, minor, patch + 1)
+
+
+def level_from_labels(labels):
+    """Return the highest bump level named by ``release:<level>`` labels, defaulting to ``patch``.
+
+    ``labels`` may be an iterable of names or a single comma-separated string. Unknown labels,
+    including ``release:skip``, are ignored: skip only decides whether a merge triggers a run.
+    """
+    if isinstance(labels, str):
+        labels = labels.split(",")
+    wanted = {label.strip()[len(LABEL_PREFIX) :] for label in labels if label.strip().startswith(LABEL_PREFIX)}
+    for level in LEVELS:  # ordered most to least significant
+        if level in wanted:
+            return level
+    return "patch"
 
 
 def read_version(init_text):
@@ -113,6 +137,14 @@ def cmd_notes(args):
     sys.stdout.write(release_notes(CHANGELOG_PATH.read_text(), args.version))
 
 
+def cmd_current(args):
+    print(read_version(INIT_PATH.read_text()))
+
+
+def cmd_level(args):
+    print(level_from_labels(args.labels))
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -123,6 +155,11 @@ def main(argv=None):
     notes = sub.add_parser("notes", help="print the changelog section for a version")
     notes.add_argument("version")
     notes.set_defaults(func=cmd_notes)
+    current = sub.add_parser("current", help="print the current version")
+    current.set_defaults(func=cmd_current)
+    level = sub.add_parser("level", help="print the bump level implied by PR labels")
+    level.add_argument("--labels", default="", help="comma-separated label names")
+    level.set_defaults(func=cmd_level)
     args = parser.parse_args(argv)
     args.func(args)
 
