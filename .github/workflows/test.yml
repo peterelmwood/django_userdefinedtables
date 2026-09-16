@@ -6,6 +6,8 @@ on:
       - main
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+  # Allows the publish workflows to gate on this one
+  workflow_call:
 
 permissions:
   contents: read
@@ -24,10 +26,12 @@ jobs:
         uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
+      - name: Install ruff (version pinned by uv.lock)
+        run: uv sync --locked --only-group dev
       - name: Check lint rules
-        run: uvx ruff check --output-format=github .
+        run: uv run --no-sync ruff check --output-format=github .
       - name: Check formatting
-        run: uvx ruff format --check .
+        run: uv run --no-sync ruff format --check .
 
   test:
     name: Test (Python ${{ matrix.python-version }}, Django ${{ matrix.django-version }})

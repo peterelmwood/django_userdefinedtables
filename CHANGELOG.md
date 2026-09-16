@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - black, isort and flake8 have been replaced by [ruff](https://docs.astral.sh/ruff/) for linting and formatting
   - pre-commit hooks updated and now include ruff, `uv lock` and django-upgrade
   - CI now uses uv, fails on lint findings, and tests an explicit Python x Django matrix
-  - PyPI and TestPyPI publishing use Trusted Publishing (OIDC) instead of API token secrets; TestPyPI publishing only runs on `main`
+  - PyPI and TestPyPI publishing use Trusted Publishing (OIDC) instead of API token secrets, are gated on the test workflow, and TestPyPI publishing only runs on `main`
   - Added Dependabot configuration for GitHub Actions and Python dependencies
 - Dropped support for Python 3.8 and 3.9 (EOL); added Python 3.13 and 3.14
 - Dropped support for Django 3.2, 4.0, 4.1 and 4.2 (EOL); minimum is now Django 5.2 LTS, added support for Django 6.0 and 6.1
