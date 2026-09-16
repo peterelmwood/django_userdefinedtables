@@ -55,7 +55,7 @@ class DuplicateColumnNameErrorTests(SimpleTestCase):
     def postgresql_error(constraint_name):
         # psycopg (2 and 3) attach the violated constraint's name to the driver exception, which Django
         # chains as __cause__ of its own IntegrityError.
-        driver_error = Exception('duplicate key value violates unique constraint "%s"' % constraint_name)
+        driver_error = Exception(f'duplicate key value violates unique constraint "{constraint_name}"')
         driver_error.diag = mock.Mock(constraint_name=constraint_name)
         error = IntegrityError(str(driver_error))
         error.__cause__ = driver_error

@@ -1,0 +1,89 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  # Allows the publish workflows to gate on this one
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Install ruff (version pinned by uv.lock)
+        run: uv sync --locked --only-group dev
+      - name: Check lint rules
+        run: uv run --no-sync ruff check --output-format=github .
+      - name: Check formatting
+        run: uv run --no-sync ruff format --check .
+
+  test:
+    name: Test (Python ${{ matrix.python-version }}, Django ${{ matrix.django-version }})
+    # Skip draft PRs
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        django-version: ["5.2", "6.0", "6.1"]
+        exclude:
+          # Django 5.2 supports Python 3.10 - 3.13
+          - { python-version: "3.14", django-version: "5.2" }
+          # Django 6.x requires Python 3.12+
+          - { python-version: "3.10", django-version: "6.0" }
+          - { python-version: "3.11", django-version: "6.0" }
+          - { python-version: "3.10", django-version: "6.1" }
+          - { python-version: "3.11", django-version: "6.1" }
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install uv and Python ${{ matrix.python-version }}
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          uv sync --locked --no-default-groups --group test --group example
+          uv pip install "Django~=${{ matrix.django-version }}.0"
+      - name: Show resolved versions
+        run: uv run --no-sync python -c "import sys, django; print(sys.version); print('Django', django.get_version())"
+      - name: Run Django tests
+        run: uv run --no-sync manage.py test userdefinedtables
+        env:
+          DJANGO_SETTINGS_MODULE: test_settings
+      - name: Run release script tests
+        run: uv run --no-sync python -m unittest discover -s scripts -p 'test_*.py'
+      - name: Run example project tests
+        working-directory: example
+        run: uv run --no-sync --project .. manage.py test example.apps.userplayground --settings=test_settings
+
+  build:
+    name: Build distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Build sdist and wheel
+        run: uv build
+      - name: Check the built distributions
+        run: uvx twine check --strict dist/*

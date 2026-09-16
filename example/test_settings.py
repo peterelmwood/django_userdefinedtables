@@ -6,7 +6,6 @@ The secret key and ALLOWED_HOSTS settings are insecure and only suitable for
 local development testing.
 """
 
-import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -40,7 +39,7 @@ INSTALLED_APPS = [
     "example.apps.core",
     "example.apps.userplayground",
     # third party
-    "bootstrap5",
+    "django_bootstrap5",
 ]
 
 MIDDLEWARE = [

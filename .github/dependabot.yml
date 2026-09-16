@@ -15,20 +15,20 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
 
-  # Library dependencies: setup.py, requirements/base.txt, requirements/dev.txt
-  - package-ecosystem: "pip"
+  # Library and development dependencies: pyproject.toml + uv.lock
+  - package-ecosystem: "uv"
     directory: "/"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
     groups:
       # Dev-only tooling lands in a single PR so the budget stays free for
-      # Django, Pillow, and django-bootstrap-v5 bumps that need a real test run.
+      # Django and Pillow bumps that need a real test run.
       dev-tooling:
         patterns:
-          - "tox"
-          - "pydocstyle"
-          - "model_bakery"
+          - "ruff"
+          - "pre-commit"
+          - "model-bakery"
 
   # Example project dependencies: example/requirements.txt
   - package-ecosystem: "pip"

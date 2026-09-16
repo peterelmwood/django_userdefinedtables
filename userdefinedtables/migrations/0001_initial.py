@@ -232,7 +232,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name='singlelineoftextcolumn',
-            constraint=models.CheckConstraint(check=models.Q(('maximum_length__lte', 255)), name='maximum_length field value cannot exceed 255.'),
+            constraint=models.CheckConstraint(condition=models.Q(('maximum_length__lte', 255)), name='maximum_length field value cannot exceed 255.'),
         ),
         migrations.AddConstraint(
             model_name='row',
@@ -250,7 +250,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name='numbercolumn',
-            constraint=models.CheckConstraint(check=models.Q(models.Q(('maximum__gte', django.db.models.expressions.F('minimum')), ('maximum__isnull', False), ('minimum__isnull', False)), ('maximum__isnull', True), ('minimum__isnull', True), _connector='OR'), name='numbercolumn.minimum cannot exceed numbercolumn.maximum.'),
+            constraint=models.CheckConstraint(condition=models.Q(models.Q(('maximum__gte', django.db.models.expressions.F('minimum')), ('maximum__isnull', False), ('minimum__isnull', False)), ('maximum__isnull', True), ('minimum__isnull', True), _connector='OR'), name='numbercolumn.minimum cannot exceed numbercolumn.maximum.'),
         ),
         migrations.AddField(
             model_name='multiplelinetextcolumnentry',
@@ -289,7 +289,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name='currencycolumn',
-            constraint=models.CheckConstraint(check=models.Q(models.Q(('maximum__gte', django.db.models.expressions.F('minimum')), ('maximum__isnull', False), ('minimum__isnull', False)), ('maximum__isnull', True), ('minimum__isnull', True), _connector='OR'), name='currencycolumn.minimum cannot exceed currencycolumn.maximum.'),
+            constraint=models.CheckConstraint(condition=models.Q(models.Q(('maximum__gte', django.db.models.expressions.F('minimum')), ('maximum__isnull', False), ('minimum__isnull', False)), ('maximum__isnull', True), ('minimum__isnull', True), _connector='OR'), name='currencycolumn.minimum cannot exceed currencycolumn.maximum.'),
         ),
         migrations.AddConstraint(
             model_name='column',

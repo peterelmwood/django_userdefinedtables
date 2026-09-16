@@ -3,17 +3,19 @@
 Entrypoint script for the Django application container.
 Validates environment variables, waits for database readiness, and starts the application.
 """
+
 import os
+import subprocess
 import sys
 import time
-import subprocess
+
 import psycopg2
 from psycopg2 import OperationalError
 
 
 def validate_environment_variables():
     """Validate that required environment variables are set."""
-    required_vars = ['POSTGRES_NAME', 'POSTGRES_USER', 'POSTGRES_PASSWORD']
+    required_vars = ["POSTGRES_NAME", "POSTGRES_USER", "POSTGRES_PASSWORD"]
     missing_vars = [var for var in required_vars if not os.environ.get(var)]
 
     if missing_vars:
@@ -35,10 +37,10 @@ def wait_for_database(max_retries=30):
     retry_count = 0
 
     db_config = {
-        'host': os.environ.get('POSTGRES_HOST', 'db'),
-        'user': os.environ.get('POSTGRES_USER'),
-        'password': os.environ.get('POSTGRES_PASSWORD'),
-        'dbname': os.environ.get('POSTGRES_NAME')
+        "host": os.environ.get("POSTGRES_HOST", "db"),
+        "user": os.environ.get("POSTGRES_USER"),
+        "password": os.environ.get("POSTGRES_PASSWORD"),
+        "dbname": os.environ.get("POSTGRES_NAME"),
     }
 
     while retry_count < max_retries:
@@ -65,7 +67,7 @@ def run_migrations():
     """Run Django database migrations."""
     print("Running migrations...")
     try:
-        subprocess.run(['python3', 'manage.py', 'migrate'], check=True)
+        subprocess.run(["python3", "manage.py", "migrate"], check=True)
     except subprocess.CalledProcessError:
         print("Failed to run migrations", file=sys.stderr)
         sys.exit(1)
@@ -75,10 +77,10 @@ def start_server():
     """Start the Django development server."""
     print("Starting Django development server...")
     # Use exec to replace the Python process with the server process
-    os.execvp('python3', ['python3', 'manage.py', 'runserver', '0.0.0.0:8000'])
+    os.execvp("python3", ["python3", "manage.py", "runserver", "0.0.0.0:8000"])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     validate_environment_variables()
     wait_for_database()
     run_migrations()

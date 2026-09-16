@@ -44,7 +44,7 @@ class AddColumnForm(forms.ModelForm):
             raise forms.ValidationError(
                 _("Cannot select a column that doesn't exist."),
                 params={"column": column_type_index},
-            )
+            ) from None
 
     def clean(self):
         cleaned_data = super().clean()

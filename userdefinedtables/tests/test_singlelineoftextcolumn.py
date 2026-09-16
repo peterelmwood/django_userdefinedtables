@@ -1,6 +1,5 @@
 from django.db import IntegrityError
 from django.test import TestCase
-
 from model_bakery import baker
 
 
@@ -30,4 +29,4 @@ class SingleLineOfTextColumnTestCase(TestCase):
         # ACT
         # ASSERT
         with self.assertRaises(ValueError):
-            entry = baker.make("userdefinedtables.singlelineoftextcolumnentry", column=column, value="1" * 256)
+            baker.make("userdefinedtables.singlelineoftextcolumnentry", column=column, value="1" * 256)

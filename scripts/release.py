@@ -49,10 +49,10 @@ def bump_version(version, level):
         raise ValueError("level must be one of {}, got {!r}".format(", ".join(LEVELS), level))
     major, minor, patch = (int(part) for part in version.split("."))
     if level == "major":
-        return "{}.0.0".format(major + 1)
+        return f"{major + 1}.0.0"
     if level == "minor":
-        return "{}.{}.0".format(major, minor + 1)
-    return "{}.{}.{}".format(major, minor, patch + 1)
+        return f"{major}.{minor + 1}.0"
+    return f"{major}.{minor}.{patch + 1}"
 
 
 def level_from_labels(labels):
@@ -71,18 +71,18 @@ def level_from_labels(labels):
 def read_version(init_text):
     match = VERSION_RE.search(init_text)
     if not match:
-        raise RuntimeError("Unable to find __version__ in {}".format(INIT_PATH))
+        raise RuntimeError(f"Unable to find __version__ in {INIT_PATH}")
     return match.group("version")
 
 
 def set_version(init_text, new_version):
-    return VERSION_RE.sub('__version__ = "{}"'.format(new_version), init_text, count=1)
+    return VERSION_RE.sub(f'__version__ = "{new_version}"', init_text, count=1)
 
 
 def roll_changelog(changelog_text, old_version, new_version, date):
     """Turn the ``[Unreleased]`` section into ``[new_version] - date`` and refresh the link references."""
     if UNRELEASED_HEADING not in changelog_text:
-        raise RuntimeError("CHANGELOG.md has no '{}' section".format(UNRELEASED_HEADING))
+        raise RuntimeError(f"CHANGELOG.md has no '{UNRELEASED_HEADING}' section")
 
     head, _, rest = changelog_text.partition(UNRELEASED_HEADING)
     next_heading = re.search(r"^## ", rest, re.M)
@@ -98,27 +98,27 @@ def roll_changelog(changelog_text, old_version, new_version, date):
             body = body[: first_link.start()]
 
     if not body.strip():
-        body = "\n\n{}\n\n".format(EMPTY_SECTION_NOTE)
+        body = f"\n\n{EMPTY_SECTION_NOTE}\n\n"
 
-    new_heading = "## [{}] - {}".format(new_version, date)
+    new_heading = f"## [{new_version}] - {date}"
     rolled = "{}{}\n\n{}{}".format(head, UNRELEASED_HEADING, new_heading, body.rstrip("\n") + "\n\n")
 
-    unreleased_link = "[Unreleased]: {}/compare/v{}...HEAD".format(REPO_URL, new_version)
-    version_link = "[{}]: {}/compare/v{}...v{}".format(new_version, REPO_URL, old_version, new_version)
+    unreleased_link = f"[Unreleased]: {REPO_URL}/compare/v{new_version}...HEAD"
+    version_link = f"[{new_version}]: {REPO_URL}/compare/v{old_version}...v{new_version}"
     old_link_re = re.compile(r"^\[Unreleased\]: \S+$", re.M)
     if old_link_re.search(tail):
-        tail = old_link_re.sub("{}\n{}".format(unreleased_link, version_link), tail, count=1)
+        tail = old_link_re.sub(f"{unreleased_link}\n{version_link}", tail, count=1)
     else:
-        tail = tail.rstrip("\n") + "\n\n{}\n{}\n".format(unreleased_link, version_link)
+        tail = tail.rstrip("\n") + f"\n\n{unreleased_link}\n{version_link}\n"
     return rolled + tail
 
 
 def release_notes(changelog_text, version):
     """Return the body of the ``[version]`` section, without its heading."""
-    pattern = re.compile(r"^## \[{}\][^\n]*\n(?P<body>.*?)(?=^## |\Z)".format(re.escape(version)), re.M | re.S)
+    pattern = re.compile(rf"^## \[{re.escape(version)}\][^\n]*\n(?P<body>.*?)(?=^## |\Z)", re.M | re.S)
     match = pattern.search(changelog_text)
     if not match:
-        raise RuntimeError("CHANGELOG.md has no section for version {}".format(version))
+        raise RuntimeError(f"CHANGELOG.md has no section for version {version}")
     body = match.group("body")
     body = re.sub(r"^\[[^\]]+\]: \S+$", "", body, flags=re.M)
     return body.strip() + "\n"
@@ -164,9 +164,9 @@ def labels_from_jsonl(stream):
         try:
             names, position = decoder.raw_decode(text, position)
         except json.JSONDecodeError as error:
-            raise ValueError("expected a stream of JSON arrays of strings: {}".format(error)) from None
+            raise ValueError(f"expected a stream of JSON arrays of strings: {error}") from None
         if not isinstance(names, list) or not all(isinstance(name, str) for name in names):
-            raise ValueError("expected a JSON array of strings, got {!r}".format(names))
+            raise ValueError(f"expected a JSON array of strings, got {names!r}")
         yield from names
 
 

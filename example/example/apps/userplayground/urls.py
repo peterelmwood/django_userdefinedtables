@@ -1,15 +1,14 @@
 from django.urls import path
 
 from example.apps.userplayground.views import (
+    ListsView,
     add_column,
     add_row,
     add_table,
     delete_column,
     delete_row,
     list_detail,
-    ListsView,
 )
-
 
 urlpatterns = [
     path("", ListsView.as_view(), name="playground"),

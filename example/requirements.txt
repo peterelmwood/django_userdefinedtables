@@ -1,7 +1,7 @@
 django
 
 # styling
-django-bootstrap-v5
+django-bootstrap5
 
 # this item
 django_userdefinedtables

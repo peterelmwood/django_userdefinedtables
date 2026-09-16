@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Modernized Python tooling (#22):
+  - Packaging metadata moved from `setup.py`/`setup.cfg` into a PEP 621 `pyproject.toml`; the version is read statically so isolated builds no longer import the package (fixes #20)
+  - Dependencies are managed with [uv](https://docs.astral.sh/uv/) via `pyproject.toml` dependency groups and a committed `uv.lock`; the `requirements/` directory has been removed
+  - black, isort and flake8 have been replaced by [ruff](https://docs.astral.sh/ruff/) for linting and formatting
+  - pre-commit hooks updated (`pre-commit-hooks` v5.0.0 -> v6.0.0) and now include ruff, `uv lock` and django-upgrade
+  - CI now uses uv, fails on lint findings, and tests an explicit Python x Django matrix
+  - TestPyPI publishing only runs on `main` and is gated on the test workflow
+  - Dependabot watches `pyproject.toml`/`uv.lock` (uv ecosystem) instead of `setup.py`/`requirements/*.txt`
+- Dropped support for Python 3.8 and 3.9 (EOL); added Python 3.13 and 3.14
+- Dropped support for Django 3.2, 4.0, 4.1 and 4.2 (EOL); minimum is now Django 5.2 LTS, added support for Django 6.0 and 6.1
+- `CheckConstraint` definitions now use `condition=` instead of the `check=` argument removed in Django 6.0
+- Example project switched from the unmaintained `django-bootstrap-v5` (which pins Django <5.0) to its successor `django-bootstrap5`; templates load `django_bootstrap5` instead of `bootstrap5`
+
 ## [0.0.16] - 2026-09-16
 
 - Maintenance release with no user-facing changes.

@@ -1,5 +1,6 @@
 """Tests for scripts/release.py. Run with: python -m unittest discover -s scripts -p 'test_*.py'"""
 
+import contextlib
 import io
 import pathlib
 import tempfile
@@ -94,9 +95,9 @@ class RollChangelogTests(unittest.TestCase):
         self.assertIn(
             "## [Unreleased]\n\n## [0.0.15] - 2026-09-16\n\n### Added\n- A new thing\n\n## [0.0.14] - 2022", rolled
         )
-        self.assertIn("[Unreleased]: {}/compare/v0.0.15...HEAD".format(REPO), rolled)
-        self.assertIn("[0.0.15]: {}/compare/v0.0.14...v0.0.15".format(REPO), rolled)
-        self.assertIn("[0.0.14]: {}/releases/tag/v0.0.14".format(REPO), rolled)
+        self.assertIn(f"[Unreleased]: {REPO}/compare/v0.0.15...HEAD", rolled)
+        self.assertIn(f"[0.0.15]: {REPO}/compare/v0.0.14...v0.0.15", rolled)
+        self.assertIn(f"[0.0.14]: {REPO}/releases/tag/v0.0.14", rolled)
         self.assertEqual(rolled.count("[Unreleased]:"), 1)
 
     def test_empty_unreleased_section_gets_a_note(self):
@@ -111,7 +112,7 @@ class RollChangelogTests(unittest.TestCase):
         text = "# Changelog\n\n## [Unreleased]\n\n- first ever change\n"
         rolled = release.roll_changelog(text, "0.0.0", "0.0.1", "2026-09-16")
         self.assertIn("## [Unreleased]\n\n## [0.0.1] - 2026-09-16\n\n- first ever change\n", rolled)
-        expected_tail = "[Unreleased]: {0}/compare/v0.0.1...HEAD\n[0.0.1]: {0}/compare/v0.0.0...v0.0.1\n".format(REPO)
+        expected_tail = f"[Unreleased]: {REPO}/compare/v0.0.1...HEAD\n[0.0.1]: {REPO}/compare/v0.0.0...v0.0.1\n"
         self.assertTrue(rolled.endswith(expected_tail), rolled)
 
     def test_missing_unreleased_raises(self):
@@ -132,11 +133,12 @@ class CmdBumpTests(unittest.TestCase):
             changelog = pathlib.Path(tmp, "CHANGELOG.md")
             init.write_text(InitVersionTests.INIT)
             changelog.write_text(changelog_text)
-            with mock.patch.object(release, "INIT_PATH", init), mock.patch.object(release, "CHANGELOG_PATH", changelog):
-                try:
-                    release.main(["bump", "patch", "--date", "2026-09-16"])
-                except RuntimeError:
-                    pass
+            with (
+                mock.patch.object(release, "INIT_PATH", init),
+                mock.patch.object(release, "CHANGELOG_PATH", changelog),
+                contextlib.suppress(RuntimeError),
+            ):
+                release.main(["bump", "patch", "--date", "2026-09-16"])
             return init.read_text(), changelog.read_text()
 
     def test_writes_both_files(self):

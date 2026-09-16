@@ -1,4 +1,4 @@
-![Tests passing](https://github.com/peterelmwood/django_userdefinedtables/actions/workflows/publish-to-test-pypi.yml/badge.svg)
+![Tests passing](https://github.com/peterelmwood/django_userdefinedtables/actions/workflows/test.yml/badge.svg)
 ![Latest is on pypi](https://github.com/peterelmwood/django_userdefinedtables/actions/workflows/release.yml/badge.svg)
 
 # django_userdefinedtables
