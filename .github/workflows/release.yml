@@ -18,9 +18,19 @@ name: Release on merge to main
 # and re-running the workflow is always safe.
 #
 # pull_request_target (not pull_request) is used so the job has the repository
-# secrets and a writable token even when the PR came from a fork. That is safe
-# here because the job only ever checks out and runs code from main, never the
-# PR head.
+# secrets and a writable token even when the PR came from a fork. The job only
+# ever checks out and runs code from main, never the PR head, so nothing from
+# an unmerged or fork PR runs with credentials.
+#
+# Trust model: main is the trusted branch. Everything this job releases to
+# PyPI is main's code, and this workflow file itself is read from main, so
+# code that can be merged into main is trusted by definition; the checks that
+# gate a merge (review, CI) are the security boundary. The credential
+# handling below is defence in depth against accidental leaks, not against a
+# malicious merge: credentials are set on the release step only, the checkout
+# does not persist its token, scripts/release.sh authenticates only the
+# specific fetch and push commands, and it strips every credential from the
+# environment of the build backend, setup.py, and scripts/release.py.
 
 on:
   pull_request_target:
@@ -52,6 +62,9 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
+          # Do not leave the token in .git/config where repository code could
+          # read it; scripts/release.sh authenticates its own fetch and push.
+          persist-credentials: false
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v4
@@ -79,8 +92,8 @@ jobs:
       #
       # The credentials are set only for this step, and the script strips
       # them from the environment of every command that runs repository code
-      # (the build backend, setup.py, scripts/release.py); only twine and gh
-      # see them. git pushes use the credentials persisted by actions/checkout.
+      # (the build backend, setup.py, scripts/release.py); only twine, gh, and
+      # the script's own authenticated git fetch/push see them.
       - name: Release
         env:
           GH_TOKEN: ${{ github.token }}

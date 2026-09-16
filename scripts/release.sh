@@ -29,9 +29,11 @@
 #
 # Code from the repository (the build backend, setup.py, scripts/release.py)
 # is always run with the PyPI and GitHub credentials stripped from the
-# environment; only twine and gh see them. Any API failure aborts the run
-# rather than being interpreted as "no labels": the run is idempotent, so the
-# fix is simply to re-run it.
+# environment; only twine, gh, and this script's own git fetch/push see them.
+# The checkout is made with persist-credentials disabled, so the token is
+# never written to .git/config; git is authenticated per command instead.
+# Any API failure aborts the run rather than being interpreted as "no labels":
+# the run is idempotent, so the fix is simply to re-run it.
 set -euo pipefail
 # Without this, `set -e` is not inherited by $(...) subshells, so a failing
 # gh call inside a command substitution would be silently ignored.
@@ -47,6 +49,14 @@ VERSION_FILE="userdefinedtables/__init__.py"
 
 # Run repository code without the publishing credentials in its environment.
 untrusted() { env -u TWINE_USERNAME -u TWINE_PASSWORD -u GH_TOKEN -u GITHUB_TOKEN "$@"; }
+
+# git with the GitHub token supplied for this one command only (the same
+# header actions/checkout would have persisted), never written to config.
+git_auth() {
+  local header
+  header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "${GH_TOKEN:-}" | base64 -w0)"
+  git -c "http.https://github.com/.extraheader=${header}" "$@"
+}
 
 tag_exists() { git rev-parse -q --verify "refs/tags/v$1" >/dev/null; }
 head_subject() { git log -1 --format=%s "${1:-HEAD}"; }
@@ -136,7 +146,7 @@ finish_release() {
 }
 
 main() {
-  git fetch --quiet origin main --tags
+  git_auth fetch --quiet origin main --tags
   git reset --quiet --hard origin/main
   local current version level attempt
   current=$(untrusted python scripts/release.py current)
@@ -145,7 +155,7 @@ main() {
   if is_release_commit "${current}" && ! tag_exists "${current}"; then
     echo "main's head is the release commit for v${current} but the tag is missing; tagging it"
     git tag -a "v${current}" -m "v${current}"
-    git push origin "refs/tags/v${current}"
+    git_auth push origin "refs/tags/v${current}"
   fi
 
   # 2. Complete the current version if this workflow started it and it is
@@ -160,7 +170,7 @@ main() {
 
   # 3. Cut a new release if anything merged since.
   for attempt in $(seq 1 "${MAX_PUSH_ATTEMPTS}"); do
-    git fetch --quiet origin main --tags
+    git_auth fetch --quiet origin main --tags
     git reset --quiet --hard origin/main
     current=$(untrusted python scripts/release.py current)
     if is_release_commit "${current}"; then
@@ -176,7 +186,7 @@ main() {
     git add "${VERSION_FILE}" CHANGELOG.md
     git commit --quiet -m "Release v${version}" -m "Triggered by #${PR_NUMBER}."
     git tag -a "v${version}" -m "v${version}"
-    if git push --atomic origin "HEAD:refs/heads/main" "refs/tags/v${version}"; then
+    if git_auth push --atomic origin "HEAD:refs/heads/main" "refs/tags/v${version}"; then
       finish_release "${version}"
       return 0
     fi
