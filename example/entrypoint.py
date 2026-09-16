@@ -15,7 +15,7 @@ def validate_environment_variables():
     """Validate that required environment variables are set."""
     required_vars = ['POSTGRES_NAME', 'POSTGRES_USER', 'POSTGRES_PASSWORD']
     missing_vars = [var for var in required_vars if not os.environ.get(var)]
-    
+
     if missing_vars:
         print(f"Error: Required environment variables are not set: {', '.join(missing_vars)}", file=sys.stderr)
         sys.exit(1)
@@ -24,23 +24,23 @@ def validate_environment_variables():
 def wait_for_database(max_retries=30):
     """
     Wait for the database to become ready.
-    
+
     Args:
         max_retries: Maximum number of retry attempts (default: 30 seconds)
-    
+
     Returns:
         True if database is ready, exits with error code otherwise
     """
     print("Waiting for database...")
     retry_count = 0
-    
+
     db_config = {
         'host': os.environ.get('POSTGRES_HOST', 'db'),
         'user': os.environ.get('POSTGRES_USER'),
         'password': os.environ.get('POSTGRES_PASSWORD'),
         'dbname': os.environ.get('POSTGRES_NAME')
     }
-    
+
     while retry_count < max_retries:
         try:
             conn = psycopg2.connect(**db_config)
