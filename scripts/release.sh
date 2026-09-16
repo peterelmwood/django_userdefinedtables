@@ -10,9 +10,10 @@
 # TWINE_REPOSITORY_URL.
 #
 # Every step is idempotent, so the whole script is safe to re-run:
-#   1. If main's head is one of our "Release vX.Y.Z" commits and the tag is
-#      missing (cannot normally happen: commit and tag are pushed atomically),
-#      tag it.
+#   1. If the current version has no tag but one of our "Release vX.Y.Z"
+#      commits introduced it (anywhere in history, not only at main's head),
+#      tag that commit. Commit and tag are pushed atomically, so this only
+#      matters if the tag was deleted afterwards.
 #   2. If the current version has a tag made by this workflow and its GitHub
 #      release is not complete (missing, or missing an asset), finish it: build
 #      from the tag, upload with --skip-existing, create the GitHub release if
@@ -27,9 +28,11 @@
 #      paginated only until a PR last updated before the range start appears,
 #      then filtered by git ancestry, so squash, merge, and rebase merges all
 #      count; before the first tagged release the range starts at the commit
-#      that introduced the current version), bump,
-#      commit, tag, push atomically (retrying from the fresh origin/main if the
-#      push is rejected), then finish that release as in step 2. Each PR's
+#      that introduced the current version), bump, build and check the
+#      package from the bumped tree (nothing is pushed if that fails, so a
+#      tag can never point at an unbuildable tree), commit, tag, push
+#      atomically (retrying from the fresh origin/main if the push is
+#      rejected), then finish that release as in step 2. Each PR's
 #      labels are taken as they were at its merge time, reconstructed from
 #      its label timeline in the same query, so relabelling a PR after the
 #      merge changes nothing; the triggering PR's labels from the merge event
@@ -92,6 +95,27 @@ is_release_commit() {
   [ "$(git log -1 --format=%s "${ref}")" = "Release v${version}" ] || return 1
   [ "$(git log -1 --format=%ce "${ref}")" = "${RELEASE_BOT_EMAIL}" ] || return 1
   git diff-tree --no-commit-id --name-only -r "${ref}" | grep -qxF "${VERSION_FILE}"
+}
+
+# The commit that introduced version $1 into the version file, if it is one
+# of this script's release commits; empty otherwise.
+release_commit_of() {
+  local sha
+  sha=$(git log --format=%H -S"__version__ = \"$1\"" -- "${VERSION_FILE}" | tail -n 1)
+  [ -n "${sha}" ] && is_release_commit "$1" "${sha}" && echo "${sha}"
+}
+
+# Build the package from the working tree into a scratch directory and run
+# twine's metadata check, without credentials. Used before anything is
+# pushed so a tag can never point at a tree that does not build.
+preflight_build() {
+  local scratch
+  scratch=$(mktemp -d)
+  untrusted ${RELEASE_BUILD_CMD} "${scratch}" && untrusted twine check "${scratch}"/* || {
+    rm -rf "${scratch}"
+    return 1
+  }
+  rm -rf "${scratch}"
 }
 
 # True when commit $1 lies in $2..HEAD (reachable from HEAD, not from $2).
@@ -233,7 +257,7 @@ merged_prs_in_range() {
     done <<<"${rows}"
     [ "${has_next}" = "true" ] || covered=1
   done
-  sort -un <<<"${found}" | sed '/^$/d'
+  sort -u <<<"${found}" | sed '/^$/d'
 }
 
 # Bump level implied by everything merged since the release of $1.
@@ -336,10 +360,11 @@ main() {
   local current version level attempt
   current=$(untrusted python scripts/release.py current)
 
-  # 1. Tag a release commit that lost its tag.
-  if is_release_commit "${current}" && ! tag_exists "${current}"; then
-    echo "main's head is the release commit for v${current} but the tag is missing; tagging it"
-    git tag -a "v${current}" -m "v${current}"
+  # 1. Tag a release commit that lost its tag, wherever it is in history.
+  local release_sha
+  if ! tag_exists "${current}" && release_sha=$(release_commit_of "${current}"); then
+    echo "Release commit ${release_sha} for v${current} has no tag; tagging it"
+    git tag -a "v${current}" -m "v${current}" "${release_sha}"
     git_auth push origin "refs/tags/v${current}"
   fi
 
@@ -366,6 +391,10 @@ main() {
     }
     version=$(untrusted python scripts/release.py bump "${level}")
     echo "Attempt ${attempt}: ${current} -> ${version} (${level})"
+    preflight_build || {
+      echo "::error::The package does not build or fails twine check at ${version}; nothing was pushed" >&2
+      return 1
+    }
     git add "${VERSION_FILE}" CHANGELOG.md
     git commit --quiet -m "Release v${version}" -m "Triggered by #${PR_NUMBER}."
     git tag -a "v${version}" -m "v${version}"
