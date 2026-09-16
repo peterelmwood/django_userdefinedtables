@@ -1,0 +1,45 @@
+# Dependabot configuration
+# Docs: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+#
+# Every ecosystem is capped at 5 open pull requests so the queue stays reviewable.
+# Labels are left at Dependabot's defaults ("dependencies" plus a per-ecosystem label),
+# which Dependabot creates in the repository on first run if they are missing.
+# Note: Dependabot does not manage .pre-commit-config.yaml; bump hook revisions manually
+# with `pre-commit autoupdate`.
+version: 2
+updates:
+  # GitHub Actions used in .github/workflows/*.yml
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Library dependencies: setup.py, requirements/base.txt, requirements/dev.txt
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      # Dev-only tooling lands in a single PR so the budget stays free for
+      # Django, Pillow, and django-bootstrap-v5 bumps that need a real test run.
+      dev-tooling:
+        patterns:
+          - "tox"
+          - "pydocstyle"
+          - "model_bakery"
+
+  # Example project dependencies: example/requirements.txt
+  - package-ecosystem: "pip"
+    directory: "/example"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Example project base image: example/Dockerfile
+  - package-ecosystem: "docker"
+    directory: "/example"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5

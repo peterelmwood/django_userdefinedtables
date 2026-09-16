@@ -83,6 +83,20 @@ isort . --profile black
 - Update CHANGELOG.md under the [Unreleased] section
 - Keep changes focused - one feature/fix per PR when possible
 
+## Dependency Updates
+
+Dependency bumps are raised automatically by [Dependabot](https://docs.github.com/en/code-security/dependabot)
+according to `.github/dependabot.yml`. It watches the GitHub Actions workflows, the Python requirements for the
+library and the example project, and the example project's Docker base image, and opens at most five pull requests
+per ecosystem at a time.
+
+Please review and merge those pull requests rather than opening manual version bumps. The one exception is
+`.pre-commit-config.yaml`, which Dependabot does not manage; refresh it with:
+
+```bash
+pre-commit autoupdate
+```
+
 ## Reporting Issues
 
 When reporting issues, please include:
