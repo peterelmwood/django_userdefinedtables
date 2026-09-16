@@ -30,6 +30,8 @@ jobs:
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
       - name: Run Django tests
         run: DJANGO_SETTINGS_MODULE=test_settings python manage.py test userdefinedtables
+      - name: Run release script tests
+        run: python -m unittest discover -s scripts -p 'test_*.py'
       - name: Run example project tests
         working-directory: example
         run: PYTHONPATH=.. python manage.py test example.apps.userplayground --settings=test_settings
@@ -60,4 +62,7 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.TEST_PYPI_API_TOKEN }}
-          repository_url: https://test.pypi.org/legacy/
+          repository-url: https://test.pypi.org/legacy/
+          # Feature branches carry the version main last released, which TestPyPI
+          # already has; treat that as success instead of a 400.
+          skip-existing: true

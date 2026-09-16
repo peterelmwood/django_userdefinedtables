@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deprecated `default_app_config` attribute (removed in Django 5.0, no longer needed with Django 3.2+)
 
 ### Added
+- Automatic releases: every merge to `main` bumps the version (level chosen by a `release:*` PR label, patch by default), tags it, publishes to PyPI, and creates a GitHub release
 - Dependabot configuration for GitHub Actions, Python (library and example), and Docker dependencies, capped at 5 open PRs per ecosystem
 - CHANGELOG.md to track project changes
 - CONTRIBUTING.md with development guidelines and contribution instructions
