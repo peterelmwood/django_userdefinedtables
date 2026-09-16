@@ -23,11 +23,23 @@ Thank you for your interest in contributing to django_userdefinedtables! This do
 
 ## Running Tests
 
-Run the test suite using Django's test runner:
+Run the package's test suite using Django's test runner from the repository root:
 
 ```bash
-DJANGO_SETTINGS_MODULE=test_settings python manage.py test
+DJANGO_SETTINGS_MODULE=test_settings python manage.py test userdefinedtables
 ```
+
+The `userdefinedtables` label matters: an unscoped run also discovers the example project's tests,
+which cannot run under the root `test_settings.py`.
+
+The example project has its own tests and settings. Run them from the `example/` directory:
+
+```bash
+cd example
+PYTHONPATH=.. python manage.py test example.apps.userplayground --settings=test_settings
+```
+
+See [example/README.md](example/README.md#running-the-tests) for details. CI runs both commands.
 
 ## Code Style
 
