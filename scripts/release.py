@@ -13,12 +13,12 @@
     python scripts/release.py current
         Print the version currently in userdefinedtables/__init__.py.
 
-    python scripts/release.py level < labels.jsonl
-        Print the bump level implied by PR labels read from stdin as JSON
-        arrays of label names, one array per line (labels may contain any
-        character, so no delimiter-based format is used): the highest of
-        release:major / release:minor / release:patch present, or ``patch``
-        when none is.
+    python scripts/release.py level < labels.json
+        Print the bump level implied by PR labels read from stdin as a
+        sequence of JSON arrays of label names, separated by any whitespace
+        and possibly pretty-printed (labels may contain any character, so no
+        delimiter-based format is used): the highest of release:major /
+        release:minor / release:patch present, or ``patch`` when none is.
 
 The module has no third-party dependencies so the workflow can run it with
 a bare interpreter. Tests live in scripts/test_release.py.
@@ -147,14 +147,26 @@ def cmd_current(args):
 
 
 def labels_from_jsonl(stream):
-    """Yield label names from lines that each hold a JSON array of strings (blank lines ignored)."""
-    for line in stream:
-        line = line.strip()
-        if not line:
-            continue
-        names = json.loads(line)
+    """Yield label names from a stream of JSON arrays of strings.
+
+    The arrays may be separated by any whitespace and may themselves span lines (GitHub's
+    ``toJSON`` pretty-prints arrays), so the stream is decoded value by value rather than line
+    by line.
+    """
+    decoder = json.JSONDecoder()
+    text = stream.read()
+    position = 0
+    while True:
+        while position < len(text) and text[position].isspace():
+            position += 1
+        if position >= len(text):
+            return
+        try:
+            names, position = decoder.raw_decode(text, position)
+        except json.JSONDecodeError as error:
+            raise ValueError("expected a stream of JSON arrays of strings: {}".format(error)) from None
         if not isinstance(names, list) or not all(isinstance(name, str) for name in names):
-            raise ValueError("expected a JSON array of strings per line, got {!r}".format(line))
+            raise ValueError("expected a JSON array of strings, got {!r}".format(names))
         yield from names
 
 

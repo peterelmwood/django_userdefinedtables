@@ -63,6 +63,15 @@ class LevelFromLabelsTests(unittest.TestCase):
         self.assertEqual(release.level_from_labels(release.labels_from_jsonl(io.StringIO(stream.getvalue()))), "minor")
         with self.assertRaises(ValueError):
             list(release.labels_from_jsonl(io.StringIO('{"not": "a list"}\n')))
+        with self.assertRaises(ValueError):
+            list(release.labels_from_jsonl(io.StringIO('["ok"] not json')))
+
+    def test_labels_from_pretty_printed_json(self):
+        # GitHub's toJSON() expression pretty-prints a non-empty array over several lines.
+        pretty = '["a"]\n[\n  "release:major",\n  "bug"\n]\n\n[]\n'
+        self.assertEqual(list(release.labels_from_jsonl(io.StringIO(pretty))), ["a", "release:major", "bug"])
+        self.assertEqual(release.level_from_labels(release.labels_from_jsonl(io.StringIO(pretty))), "major")
+        self.assertEqual(list(release.labels_from_jsonl(io.StringIO(""))), [])
 
 
 class InitVersionTests(unittest.TestCase):
