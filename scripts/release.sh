@@ -5,7 +5,8 @@
 # Requires: git (on a full clone of main), gh (authenticated), python with
 # scripts/release.py, build, twine (TWINE_USERNAME/TWINE_PASSWORD set).
 # Environment: GH_REPO (owner/name), PR_NUMBER (the merged PR that triggered
-# the run), optionally TWINE_REPOSITORY_URL.
+# the run), PR_LABELS (that PR's labels as they were in the merge event,
+# comma-separated), optionally TWINE_REPOSITORY_URL.
 #
 # Every step is idempotent, so the whole script is safe to re-run:
 #   1. If main's head is one of our "Release vX.Y.Z" commits and the tag is
@@ -25,7 +26,10 @@
 #      and rebase merges all count; before the first tagged release the range
 #      starts at the commit that introduced the current version), bump,
 #      commit, tag, push atomically (retrying from the fresh origin/main if the
-#      push is rejected), then finish that release as in step 2.
+#      push is rejected), then finish that release as in step 2. Labels are
+#      read as they are at run time, except that the triggering PR's labels
+#      from the merge event (PR_LABELS) are always included, so relabelling
+#      that PR after the merge cannot lower its bump.
 #
 # A "release commit" is recognised by three things together: the subject
 # "Release vX.Y.Z" where X.Y.Z is the version in the version file, the
@@ -46,6 +50,11 @@ shopt -s inherit_errexit
 
 : "${GH_REPO:?GH_REPO (owner/name) is required}"
 : "${PR_NUMBER:?PR_NUMBER is required}"
+PR_LABELS="${PR_LABELS:-}"
+# Upper bound on PRs merged between two releases that one query can return
+# (GitHub's search API caps results at 1000). Hitting it aborts the run
+# rather than silently ignoring older PRs.
+PR_QUERY_LIMIT=1000
 # Overridable so the script can be exercised without a real build backend.
 RELEASE_BUILD_CMD="${RELEASE_BUILD_CMD:-python -m build --sdist --wheel --outdir}"
 MAX_PUSH_ATTEMPTS=3
@@ -85,13 +94,17 @@ is_release_commit() {
 merged_prs_in_range() {
   local since="$1" since_date rows number labels oid
   since_date=$(git log -1 --format=%cI "${since}")
-  rows=$(gh pr list --state merged --base main --limit 500 \
+  rows=$(gh pr list --state merged --base main --limit "${PR_QUERY_LIMIT}" \
     --search "merged:>=${since_date}" \
     --json number,labels,mergeCommit \
     --jq '.[] | select(.mergeCommit != null) | [.number, .mergeCommit.oid, ([.labels[].name] | join(","))] | @tsv') || {
     echo "::error::Could not list pull requests merged since ${since_date}" >&2
     return 1
   }
+  if [ "$(grep -c . <<<"${rows}")" -ge "${PR_QUERY_LIMIT}" ]; then
+    echo "::error::More than ${PR_QUERY_LIMIT} pull requests merged since ${since_date}; the query cannot cover the whole range" >&2
+    return 1
+  fi
   # Labels come last so an unlabelled PR (empty field) still parses.
   while IFS=$'\t' read -r number oid labels; do
     [ -n "${number}" ] || continue
@@ -116,6 +129,11 @@ bump_level_since() {
   prs=$(merged_prs_in_range "${since}") || return 1
   echo "PRs merged since v$1: $(cut -f1 <<<"${prs}" | tr '\n' ' ')" >&2
   labels=$(cut -f2 <<<"${prs}" | paste -sd, -)
+  # The triggering PR's labels as of the merge event, if it is in the range:
+  # a label removed after the merge must not lower the bump it asked for.
+  if grep -qx "${PR_NUMBER}" <<<"$(cut -f1 <<<"${prs}")"; then
+    labels="${labels},${PR_LABELS}"
+  fi
   untrusted python scripts/release.py level --labels "${labels}"
 }
 

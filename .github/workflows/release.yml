@@ -57,6 +57,9 @@ jobs:
     env:
       GH_REPO: ${{ github.repository }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
+      # Labels as they were when the PR was merged, so a later relabel cannot
+      # change the bump this merge asked for.
+      PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
     steps:
       - uses: actions/checkout@v3
         with:
