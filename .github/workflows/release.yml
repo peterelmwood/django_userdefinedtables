@@ -1,0 +1,109 @@
+name: Release on merge to main
+
+# Every pull request merged into main becomes a release:
+#   1. read the bump level from the PR's labels (release:major / release:minor /
+#      release:patch, default patch; release:skip opts out),
+#   2. bump __version__ and roll the CHANGELOG "Unreleased" section,
+#   3. commit that to main and tag vX.Y.Z,
+#   4. build, publish to PyPI, and create a GitHub release with the changelog
+#      section as its notes.
+#
+# pull_request_target (not pull_request) is used so the job has the repository
+# secrets and a writable token even when the PR came from a fork. That is safe
+# here because the job only ever checks out and runs code from main, never the
+# PR head.
+
+on:
+  pull_request_target:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+# Serialise releases so two merges in quick succession cannot race on the
+# version bump.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Bump version, tag, and publish to PyPI
+    if: github.event.pull_request.merged == true && !contains(github.event.pull_request.labels.*.name, 'release:skip')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install build tooling
+        run: uv pip install --system build twine
+
+      - name: Determine bump level from PR labels
+        id: level
+        env:
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          level=patch
+          case ",${LABELS}," in
+            *,release:major,*) level=major ;;
+            *,release:minor,*) level=minor ;;
+          esac
+          echo "Bump level: ${level} (labels: ${LABELS:-none})"
+          echo "level=${level}" >> "$GITHUB_OUTPUT"
+
+      - name: Run release script tests
+        run: python -m unittest discover -s scripts -p 'test_*.py'
+
+      - name: Bump version and roll changelog
+        id: bump
+        run: |
+          version=$(python scripts/release.py bump "${{ steps.level.outputs.level }}")
+          echo "Releasing v${version}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Build a binary wheel and a source tarball
+        run: |
+          python -m build --sdist --wheel --outdir dist/
+          twine check dist/*
+
+      # Push the version commit and tag before uploading: a failed push leaves
+      # PyPI untouched and the job can simply be re-run, whereas a failed push
+      # after a successful upload would leave a release on PyPI that main does
+      # not carry (PyPI never accepts the same version twice).
+      - name: Commit version bump and tag
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add userdefinedtables/__init__.py CHANGELOG.md
+          git commit -m "Release v${VERSION}" -m "Triggered by #${PR_NUMBER}: ${PR_TITLE}"
+          git tag -a "v${VERSION}" -m "v${VERSION}"
+          git push origin HEAD:main
+          git push origin "v${VERSION}"
+
+      - name: Publish distribution 📦 to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          python scripts/release.py notes "${VERSION}" > release-notes.md
+          gh release create "v${VERSION}" dist/* --title "v${VERSION}" --notes-file release-notes.md

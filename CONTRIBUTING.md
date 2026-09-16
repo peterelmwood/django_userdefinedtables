@@ -80,7 +80,8 @@ isort . --profile black
 - Include a clear description of the changes
 - Reference any related issues
 - Ensure all tests pass
-- Update CHANGELOG.md under the [Unreleased] section
+- Update CHANGELOG.md under the [Unreleased] section (it becomes the release notes; see Releasing)
+- Do not change `__version__`; the release workflow bumps it on merge
 - Keep changes focused - one feature/fix per PR when possible
 
 ## Dependency Updates
@@ -95,6 +96,33 @@ Please review and merge those pull requests rather than opening manual version b
 
 ```bash
 pre-commit autoupdate
+```
+
+## Releasing
+
+Every pull request merged into `main` is released automatically by the
+`Release on merge to main` workflow (`.github/workflows/release.yml`). On merge it:
+
+1. Reads the bump level from the pull request's labels:
+   - `release:major` → `X.0.0`
+   - `release:minor` → `X.Y.0`
+   - `release:patch` (or no label) → `X.Y.Z`
+   - `release:skip` → no release for this merge
+2. Bumps `__version__` in `userdefinedtables/__init__.py` and moves the
+   `[Unreleased]` section of `CHANGELOG.md` under the new version.
+3. Commits that to `main` and tags it `vX.Y.Z`.
+4. Builds the package, publishes it to PyPI, and creates a GitHub release using
+   the changelog section as the release notes.
+
+So: do not edit `__version__` in a pull request, keep your changes listed under
+`[Unreleased]` in `CHANGELOG.md`, and add a `release:*` label if the default
+patch bump is not right. The workflow can be exercised locally without
+publishing:
+
+```bash
+python scripts/release.py bump patch      # edits __init__.py and CHANGELOG.md
+python scripts/release.py notes 0.0.15    # prints the release notes for a version
+python -m unittest discover -s scripts -p 'test_*.py'
 ```
 
 ## Reporting Issues
