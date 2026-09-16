@@ -31,20 +31,20 @@ permissions:
   contents: write
   pull-requests: read
 
-# Serialise releases. GitHub keeps at most one pending run per group and
-# drops older pending ones; that is fine because whichever run executes
-# releases everything merged since the last release (see above).
-concurrency:
-  group: release
-  cancel-in-progress: false
-
 jobs:
   release:
     name: Bump version, tag, and publish to PyPI
     if: github.event.pull_request.merged == true && !contains(github.event.pull_request.labels.*.name, 'release:skip')
     runs-on: ubuntu-latest
+    # Serialise releases. This is job-level (not workflow-level) so that a
+    # release:skip merge, whose job never queues, cannot displace a pending
+    # release run. GitHub keeps at most one pending job per group and drops
+    # older pending ones; that is fine because whichever run executes
+    # releases everything merged since the last release (see above).
+    concurrency:
+      group: release
+      cancel-in-progress: false
     env:
-      GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
     steps:
@@ -76,8 +76,14 @@ jobs:
       # completed, then bumps/tags/pushes/publishes a new one if anything has
       # merged since. Every step is idempotent, so re-running this workflow
       # after a failure is always safe. See the script header for details.
+      #
+      # The credentials are set only for this step, and the script strips
+      # them from the environment of every command that runs repository code
+      # (the build backend, setup.py, scripts/release.py); only twine and gh
+      # see them. git pushes use the credentials persisted by actions/checkout.
       - name: Release
         env:
+          GH_TOKEN: ${{ github.token }}
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
         run: bash scripts/release.sh
