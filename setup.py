@@ -1,8 +1,22 @@
 import os
+import re
 
 from setuptools import find_packages, setup
 
-from userdefinedtables import VERSION
+HERE = os.path.abspath(os.path.dirname(__file__))
+
+
+def read_version():
+    """Read the version from the package without importing it (the build env does not have it on sys.path)."""
+    init_path = os.path.join(HERE, "userdefinedtables", "__init__.py")
+    with open(init_path, mode="r") as f:
+        match = re.search(r'^__version__ = "([^"]+)"', f.read(), re.M)
+    if not match:
+        raise RuntimeError("Unable to find __version__ in userdefinedtables/__init__.py")
+    return match.group(1)
+
+
+VERSION = read_version()
 
 
 def long_desc(root_path):
@@ -14,7 +28,6 @@ def long_desc(root_path):
                 yield f.read()
 
 
-HERE = os.path.abspath(os.path.dirname(__file__))
 long_description = "\n\n".join(long_desc(HERE))
 
 
