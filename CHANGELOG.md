@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated Django version support: minimum version is now Django 3.2 LTS, added support for Django 4.1 and 4.2
 - Improved code quality with consistent formatting
 - Bumped `pre-commit/pre-commit-hooks` from v3.4.0 to v5.0.0
+- Brought the tree into compliance with the pre-commit hooks (trailing whitespace, end-of-file newlines, requirements ordering) and relaxed the hooks' Python pin from 3.9 to any Python 3
 - Updated GitHub Actions workflows to test on Python 3.12 and use proper test settings
 - Enhanced package metadata with project URLs and better configuration
 - Improved package initialization with docstring and better exports

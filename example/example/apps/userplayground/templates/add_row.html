@@ -4,7 +4,7 @@
 
 {% block content %}
     <h3>Add New Row to "{{ list.name }}"</h3>
-    
+
     <div class="mb-3">
         <a href="{% url 'list_detail' list.pk %}" class="btn btn-secondary">
             <i class="bi bi-arrow-left"></i> Back to Table Data
@@ -13,13 +13,13 @@
 
     {% if not columns_with_types %}
         <div class="alert alert-warning">
-            <strong>No columns defined!</strong> 
+            <strong>No columns defined!</strong>
             <a href="{% url 'add_column' list.pk %}">Add columns</a> to this table first before adding data.
         </div>
     {% else %}
         <form action="" method="post" class="form">
             {% csrf_token %}
-            
+
             <div class="card">
                 <div class="card-body">
                     {% for col_info in columns_with_types %}
@@ -34,7 +34,7 @@
                                     <small class="text-muted">{{ col_info.column.description }}</small>
                                 {% endif %}
                             </label>
-                            
+
                             {% if col_info.type_name == "BinaryColumn" %}
                                 <select name="column_{{ col_info.column.pk }}" id="column_{{ col_info.column.pk }}" class="form-select" {% if col_info.column.required %}required{% endif %}>
                                     <option value="">-- Select --</option>
