@@ -60,6 +60,9 @@ jobs:
       # Labels as they were when the PR was merged, so a later relabel cannot
       # change the bump this merge asked for.
       PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+      # Its merge commit, so the script can tell whether this PR belongs to
+      # the release being cut or already shipped in an earlier one.
+      PR_MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
     steps:
       - uses: actions/checkout@v3
         with:
