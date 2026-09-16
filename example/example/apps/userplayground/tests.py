@@ -131,13 +131,17 @@ class AddColumnViewTests(TestCase):
         self.assertIn("name", form.errors)
         self.assertEqual(self.test_list.columns.count(), 1)
 
-    def test_post_duplicate_column_name_racing_insert_renders_form_with_errors(self):
-        """A duplicate inserted between the form's check and the save should still become a form error"""
-        SingleLineOfTextColumn.objects.create(name="Test Column", list=self.test_list)
+    def test_post_duplicate_column_name_inserted_after_validation_renders_form_with_errors(self):
+        """A same-named column inserted after the form validated should still become a form error"""
+        original_clean = AddColumnForm.clean
 
-        # Bypass the form's own duplicate check to simulate a concurrent request that inserted the same
-        # name after validation passed, leaving the model's unique constraint as the only guard.
-        with mock.patch.object(AddColumnForm, "clean", forms.ModelForm.clean):
+        def clean_then_insert_duplicate(form):
+            cleaned_data = original_clean(form)
+            # Simulate a concurrent request winning the race between validation and save
+            SingleLineOfTextColumn.objects.create(name="Test Column", list=self.test_list)
+            return cleaned_data
+
+        with mock.patch.object(AddColumnForm, "clean", clean_then_insert_duplicate):
             response = self.client.post(self.url, self.valid_data)
         self.assertEqual(response.status_code, 200)
 
@@ -153,6 +157,21 @@ class AddColumnViewTests(TestCase):
         with self.assertRaises(IntegrityError):
             self.client.post(self.url, {**self.valid_data, "column": "8"})
         self.assertEqual(self.test_list.columns.count(), 0)
+
+    def test_post_duplicate_name_is_reported_before_other_integrity_failures(self):
+        """With a same-named column present, the duplicate is reported and no save is attempted"""
+        SingleLineOfTextColumn.objects.create(name="Test Column", list=self.test_list)
+
+        # Bypass the form's own check so only the view's locked re-check stands between the POST and a
+        # LookupColumn save that would fail on NOT NULL; the duplicate must win, not be misreported.
+        with mock.patch.object(AddColumnForm, "clean", forms.ModelForm.clean):
+            response = self.client.post(self.url, {**self.valid_data, "column": "8"})
+        self.assertEqual(response.status_code, 200)
+
+        form = response.context["form"]
+        self.assertTrue(form.is_bound)
+        self.assertIn("name", form.errors)
+        self.assertEqual(self.test_list.columns.count(), 1)
 
     def test_post_duplicate_column_name_in_other_list_is_allowed(self):
         """The name uniqueness check is per list, so the same name may be used in another list"""

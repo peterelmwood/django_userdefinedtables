@@ -3,7 +3,7 @@ from django.views import generic
 from django.views.decorators.csrf import csrf_protect
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import IntegrityError, transaction
+from django.db import transaction
 
 from example.apps.userplayground.forms import AddColumnForm, AddTableForm
 from userdefinedtables.models import COLUMN_TYPES, ENTRY_TYPES, List, Row
@@ -61,22 +61,19 @@ def add_column(request, list_pk=None):
                 unique=form.cleaned_data.get("unique", False),
                 list=my_list,
             )
-            try:
-                # The form already rejects names that exist in this list, but a concurrent request can
-                # insert the same name between that check and this save. The model's unique constraint
-                # is the final guard, so translate its violation back into a form error instead of a 500.
-                with transaction.atomic():
+            # The form already rejects names that exist in this list, but a concurrent request can insert
+            # the same name between that check and the save. Lock the list row so column creation for one
+            # list is serialised, then re-check under the lock. The model's unique constraint stays as the
+            # final guard, and an IntegrityError from any other cause (for example a column type whose
+            # required fields this form does not collect) propagates instead of being guessed at.
+            with transaction.atomic():
+                List.objects.select_for_update().get(pk=my_list.pk)
+                if my_list.columns.filter(name=column.name).exists():
+                    form.add_error("name", f"A column named '{column.name}' already exists in this list.")
+                else:
                     column.save()
-            except IntegrityError:
-                # Only report a duplicate when one actually exists now; any other integrity failure
-                # (for example a column type whose required fields this form does not collect) is
-                # not the user's doing and must not be misreported as a name clash.
-                if not my_list.columns.filter(name=column.name).exists():
-                    raise
-                form.add_error("name", f"A column named '{column.name}' already exists in this list.")
-            else:
-                messages.success(request, f"Column '{column.name}' added successfully!")
-                return redirect("add_column", list_pk=list_pk)
+                    messages.success(request, f"Column '{column.name}' added successfully!")
+                    return redirect("add_column", list_pk=list_pk)
     else:
         # Pre-select the first column type (choices are indexed into COLUMN_TYPES)
         form = AddColumnForm(initial={"column": "0"}, list=my_list)
