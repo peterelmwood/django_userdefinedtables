@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.17] - 2026-09-16
+
 ### Changed
 - Modernized Python tooling (#22):
   - Packaging metadata moved from `setup.py`/`setup.cfg` into a PEP 621 `pyproject.toml`; the version is read statically so isolated builds no longer import the package (fixes #20)
@@ -64,7 +66,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multi-table inheritance for simplified querying
 - Comprehensive test suite
 
-[Unreleased]: https://github.com/peterelmwood/django_userdefinedtables/compare/v0.0.16...HEAD
+[Unreleased]: https://github.com/peterelmwood/django_userdefinedtables/compare/v0.0.17...HEAD
+[0.0.17]: https://github.com/peterelmwood/django_userdefinedtables/compare/v0.0.16...v0.0.17
 [0.0.16]: https://github.com/peterelmwood/django_userdefinedtables/compare/v0.0.15...v0.0.16
 [0.0.15]: https://github.com/peterelmwood/django_userdefinedtables/compare/v0.0.14...v0.0.15
 [0.0.14]: https://github.com/peterelmwood/django_userdefinedtables/releases/tag/v0.0.14
