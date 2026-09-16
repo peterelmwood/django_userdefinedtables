@@ -116,8 +116,9 @@ Every pull request merged into `main` is released automatically by the
 4. Builds the package, publishes it to PyPI, and creates a GitHub release using
    the changelog section as the release notes.
 
-The workflow is safe to re-run: if a run fails after the version commit has
-landed on `main`, re-running it resumes that version rather than bumping again.
+The workflow is safe to re-run: it first completes any release whose earlier run
+failed after the version commit landed on `main`, then cuts a new release only if
+something has merged since. The logic lives in `scripts/release.sh`.
 
 So: do not edit `__version__` in a pull request, keep your changes listed under
 `[Unreleased]` in `CHANGELOG.md`, and add a `release:*` label if the default

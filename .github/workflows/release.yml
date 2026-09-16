@@ -10,17 +10,12 @@ name: Release on merge to main
 #   4. build, publish to PyPI, and create a GitHub release with the changelog
 #      section as its notes.
 #
-# The job is written to be safe to re-run and safe under concurrent merges:
-#   - If main's head is already a "Release vX.Y.Z" commit made by this
-#     workflow, the run resumes that version instead of bumping again, so a
-#     failure after the push (upload, GitHub release) is fixed by re-running.
-#   - The bump/commit/tag/push sequence retries from a fresh origin/main if
-#     the atomic push is rejected because main advanced in the meantime, and
-#     each attempt recomputes the level from all PRs merged since the last
-#     release, so a label on a PR whose own run was dropped or lost the race
-#     is still honoured.
-#   - PyPI upload uses skip-existing and the GitHub release is only created
-#     when missing, so every step is idempotent.
+# The work is done by scripts/release.sh, which is idempotent end to end: it
+# first completes any release whose earlier run failed after the push (even if
+# main has moved on since), then cuts a new release only if something has
+# merged since the last one, retrying from a fresh origin/main if the atomic
+# push is rejected. So a dropped or failed run never loses a merge or a label,
+# and re-running the workflow is always safe.
 #
 # pull_request_target (not pull_request) is used so the job has the repository
 # secrets and a writable token even when the PR came from a fork. That is safe
@@ -77,83 +72,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      # Either resume the version already on main (re-run after a partial
-      # release) or create the next one. Retries when main moves under us.
-      - name: Bump version, commit, and tag (or resume)
-        id: bump
-        run: |
-          set -euo pipefail
-
-          # Labels of every PR merged since the last release tag, plus the PR
-          # that triggered this run. Commit subjects carry "(#N)" for squash
-          # and merge commits created through the GitHub UI.
-          labels_since_last_release() {
-            local current="$1" prs="$PR_NUMBER"
-            if git rev-parse -q --verify "refs/tags/v${current}" >/dev/null; then
-              prs="$prs $(git log --format=%s "v${current}..HEAD" | grep -oE '\(#[0-9]+\)' | tr -d '(#)' || true)"
-            fi
-            local labels=""
-            for n in $(echo "$prs" | tr ' ' '\n' | sort -un); do
-              labels="${labels},$(gh pr view "$n" --json labels --jq '[.labels[].name] | join(",")')"
-            done
-            echo "$labels"
-          }
-
-          for attempt in 1 2 3; do
-            git fetch --quiet origin main --tags
-            git reset --quiet --hard origin/main
-            current=$(python scripts/release.py current)
-
-            if [ "$(git log -1 --format=%s)" = "Release v${current}" ]; then
-              echo "main already carries the release commit for v${current}; resuming it"
-              if ! git rev-parse -q --verify "refs/tags/v${current}" >/dev/null; then
-                git tag -a "v${current}" -m "v${current}"
-                git push origin "refs/tags/v${current}"
-              fi
-              echo "version=${current}" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-
-            labels=$(labels_since_last_release "$current")
-            level=$(python scripts/release.py level --labels "$labels")
-            version=$(python scripts/release.py bump "$level")
-            echo "Attempt ${attempt}: ${current} -> ${version} (${level}; labels: ${labels#,})"
-
-            git add userdefinedtables/__init__.py CHANGELOG.md
-            git commit --quiet -m "Release v${version}" -m "Triggered by #${PR_NUMBER}."
-            git tag -a "v${version}" -m "v${version}"
-            if git push --atomic origin "HEAD:refs/heads/main" "refs/tags/v${version}"; then
-              echo "version=${version}" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-            echo "Push rejected (main advanced?); retrying from the new origin/main"
-            git tag -d "v${version}"
-          done
-          echo "::error::Could not push the release commit after 3 attempts"
-          exit 1
-
-      - name: Build a binary wheel and a source tarball
-        run: |
-          python -m build --sdist --wheel --outdir dist/
-          twine check dist/*
-
-      # The commit and tag are already on main at this point, so a failure
-      # here is recovered by re-running the workflow, which resumes the
-      # version (see the bump step). skip-existing makes that re-run a no-op
-      # when the upload itself had succeeded.
-      - name: Publish distribution 📦 to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
-          skip-existing: true
-
-      - name: Create GitHub release
+      # scripts/release.sh finishes any release that was started but not
+      # completed, then bumps/tags/pushes/publishes a new one if anything has
+      # merged since. Every step is idempotent, so re-running this workflow
+      # after a failure is always safe. See the script header for details.
+      - name: Release
         env:
-          VERSION: ${{ steps.bump.outputs.version }}
-        run: |
-          if gh release view "v${VERSION}" >/dev/null 2>&1; then
-            echo "Release v${VERSION} already exists"
-            exit 0
-          fi
-          python scripts/release.py notes "${VERSION}" > release-notes.md
-          gh release create "v${VERSION}" dist/* --title "v${VERSION}" --notes-file release-notes.md
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: bash scripts/release.sh
