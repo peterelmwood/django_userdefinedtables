@@ -1,50 +1,133 @@
 from django.test import TestCase
 from django.urls import reverse
 
-from userdefinedtables.models import List
+from userdefinedtables.models import Column, List, SingleLineOfTextColumn
 
 
 class AddTableViewTests(TestCase):
+    def setUp(self):
+        self.url = reverse("add_table")
+
     def test_get_add_table_renders_form(self):
-        """GET request should render form"""
-        response = self.client.get(reverse("add_table"))
+        """GET request should render an unbound form"""
+        response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "form")
+        self.assertContains(response, "<form")
+        self.assertFalse(response.context["form"].is_bound)
 
     def test_post_valid_data_creates_table_and_redirects(self):
-        """POST with valid data should create table and redirect"""
-        response = self.client.post(reverse("add_table"), {"name": "Test Table"})
-        self.assertEqual(response.status_code, 302)  # Redirect
+        """POST with valid data should create the table and redirect to the playground"""
+        response = self.client.post(self.url, {"name": "Test Table"})
+        # assertRedirects also fetches the destination and checks it responds with 200
+        self.assertRedirects(response, reverse("playground"))
         self.assertEqual(List.objects.count(), 1)
-        self.assertEqual(List.objects.first().name, "Test Table")
+        self.assertEqual(List.objects.get().name, "Test Table")
+
+        # Following the redirect with a GET must not create anything else (POST-Redirect-GET)
+        response = self.client.get(reverse("playground"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(List.objects.count(), 1)
+
+    def test_post_invalid_data_renders_form_with_errors(self):
+        """POST with invalid data should re-render the bound form with its errors and submitted input"""
+        # List.name allows blank values, so an over-long name is the invalid case
+        too_long_name = "x" * 256
+        response = self.client.post(self.url, {"name": too_long_name})
+        self.assertEqual(response.status_code, 200)
+
+        form = response.context["form"]
+        self.assertTrue(form.is_bound)
+        self.assertIn("name", form.errors)
+        self.assertEqual(form["name"].value(), too_long_name)
+        self.assertEqual(List.objects.count(), 0)
 
 
 class AddColumnViewTests(TestCase):
     def setUp(self):
         self.test_list = List.objects.create(name="Test List")
         self.url = reverse("add_column", kwargs={"list_pk": self.test_list.pk})
+        # Index 0 in COLUMN_TYPES is SingleLineOfTextColumn
+        self.valid_data = {"column": "0", "name": "Test Column", "description": "", "required": False, "unique": False}
 
     def test_get_add_column_renders_form(self):
-        """GET request should render form with existing columns"""
+        """GET request should render an unbound form with existing columns"""
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "form")
+        self.assertContains(response, "<form")
+        self.assertFalse(response.context["form"].is_bound)
         self.assertIn("columns", response.context)
 
     def test_post_valid_data_creates_column_and_redirects(self):
-        """POST with valid data should create column and redirect"""
-        response = self.client.post(
-            self.url, {"column": "0", "name": "Test Column", "description": "", "required": False, "unique": False}
-        )
-        self.assertEqual(response.status_code, 302)  # Redirect after successful save
+        """POST with valid data should create the selected column subtype and redirect back to the page"""
+        response = self.client.post(self.url, self.valid_data)
+        # assertRedirects also fetches the destination and checks it responds with 200
+        self.assertRedirects(response, self.url)
+
+        self.assertEqual(self.test_list.columns.count(), 1)
+        column = SingleLineOfTextColumn.objects.get(name="Test Column")
+        self.assertEqual(column.list, self.test_list)
+        self.assertEqual(column.type, "SingleLineOfTextColumn")
+        # The base Column row must be the parent of the subtype, not a separate untyped column
+        self.assertEqual(Column.objects.count(), 1)
+        self.assertEqual(Column.objects.get().pk, column.pk)
+
+        # Following the redirect with a GET shows the saved column in an unbound form
+        # and must not create anything else (POST-Redirect-GET)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context["form"].is_bound)
+        self.assertContains(response, "Test Column")
         self.assertEqual(self.test_list.columns.count(), 1)
 
     def test_post_invalid_data_renders_form_with_errors(self):
-        """POST with invalid data should re-render form with errors"""
-        # Name is required, so posting without it should fail
+        """POST without the required name should re-render the bound form with errors"""
         response = self.client.post(self.url, {"column": "0"})
-        self.assertEqual(response.status_code, 200)  # Re-render form
-        self.assertContains(response, "form")
-        self.assertEqual(self.test_list.columns.count(), 0)  # No column created
-        # Check that form errors are present
-        self.assertTrue(response.context["form"].errors)
+        self.assertEqual(response.status_code, 200)
+
+        form = response.context["form"]
+        self.assertTrue(form.is_bound)
+        self.assertIn("name", form.errors)
+        self.assertEqual(self.test_list.columns.count(), 0)
+
+    def test_post_missing_column_type_renders_form_with_errors(self):
+        """POST without a column type should report the field error instead of crashing"""
+        response = self.client.post(self.url, {"name": "Missing type"})
+        self.assertEqual(response.status_code, 200)
+
+        form = response.context["form"]
+        self.assertTrue(form.is_bound)
+        self.assertIn("column", form.errors)
+        self.assertEqual(form["name"].value(), "Missing type")
+        self.assertEqual(self.test_list.columns.count(), 0)
+
+    def test_post_invalid_column_type_renders_form_with_errors(self):
+        """POST with a column type that is not a valid choice should report the field error"""
+        response = self.client.post(self.url, {"name": "Invalid type", "column": "999"})
+        self.assertEqual(response.status_code, 200)
+
+        form = response.context["form"]
+        self.assertTrue(form.is_bound)
+        self.assertIn("column", form.errors)
+        self.assertEqual(self.test_list.columns.count(), 0)
+
+    def test_post_duplicate_column_name_renders_form_with_errors(self):
+        """POST with a name already used in the same list should show a form error, not crash"""
+        SingleLineOfTextColumn.objects.create(name="Test Column", list=self.test_list)
+
+        response = self.client.post(self.url, self.valid_data)
+        self.assertEqual(response.status_code, 200)
+
+        form = response.context["form"]
+        self.assertTrue(form.is_bound)
+        self.assertIn("name", form.errors)
+        self.assertEqual(self.test_list.columns.count(), 1)
+
+    def test_post_duplicate_column_name_in_other_list_is_allowed(self):
+        """The name uniqueness check is per list, so the same name may be used in another list"""
+        other_list = List.objects.create(name="Other List")
+        SingleLineOfTextColumn.objects.create(name="Test Column", list=other_list)
+
+        response = self.client.post(self.url, self.valid_data)
+        self.assertRedirects(response, self.url)
+        self.assertEqual(self.test_list.columns.count(), 1)
+        self.assertEqual(other_list.columns.count(), 1)
