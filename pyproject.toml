@@ -9,7 +9,7 @@ description = "Generic EAV-style table creation in the user's hands"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 authors = [{ name = "Peter Wood", email = "peterelmwood@gmail.com" }]
 maintainers = [{ name = "Peter Wood", email = "peterelmwood@gmail.com" }]
 dependencies = [
@@ -23,7 +23,6 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -72,7 +71,7 @@ default-groups = ["dev"]
 
 [tool.ruff]
 line-length = 120
-target-version = "py310"
+target-version = "py311"
 extend-exclude = ["migrations"]
 
 [tool.ruff.lint]
