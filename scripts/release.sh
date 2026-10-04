@@ -325,13 +325,25 @@ finish_release() {
   twine upload --non-interactive --skip-existing "${work}"/dist/*
   if ! gh release view "v${version}" >/dev/null 2>&1; then
     (cd "${work}/src" && untrusted python scripts/release.py notes "${version}") > "${work}/notes.md"
-    gh release create "v${version}" --title "v${version}" --notes-file "${work}/notes.md"
+    # Attach the assets in the same call that creates the release. Releases
+    # are immutable once published, so assets cannot be added afterwards.
+    gh release create "v${version}" --title "v${version}" --notes-file "${work}/notes.md" "${work}"/dist/*
   fi
-  local have file
+  local have file out
   have=$(gh release view "v${version}" --json assets --jq '.assets[].name')
   for file in "${work}"/dist/*; do
     if ! grep -qxF "$(basename "${file}")" <<<"${have}"; then
-      gh release upload "v${version}" "${file}"
+      # A release published without assets (before they were attached at
+      # creation) is immutable and can never be completed. PyPI has the
+      # files, so warn instead of failing every future run.
+      if ! out=$(gh release upload "v${version}" "${file}" 2>&1); then
+        if grep -qi "immutable" <<<"${out}"; then
+          echo "::warning::Release v${version} is immutable; cannot attach $(basename "${file}")" >&2
+        else
+          echo "${out}" >&2
+          return 1
+        fi
+      fi
     fi
   done
   git worktree remove --force "${work}/src"
