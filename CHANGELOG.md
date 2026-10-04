@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.19] - 2026-10-04
+
+- Maintenance release with no user-facing changes.
+
 ## [0.0.18] - 2026-10-04
 
 - Maintenance release with no user-facing changes.
@@ -70,7 +74,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multi-table inheritance for simplified querying
 - Comprehensive test suite
 
-[Unreleased]: https://github.com/peterelmwood/django_userdefinedtables/compare/v0.0.18...HEAD
+[Unreleased]: https://github.com/peterelmwood/django_userdefinedtables/compare/v0.0.19...HEAD
+[0.0.19]: https://github.com/peterelmwood/django_userdefinedtables/compare/v0.0.18...v0.0.19
 [0.0.18]: https://github.com/peterelmwood/django_userdefinedtables/compare/v0.0.17...v0.0.18
 [0.0.17]: https://github.com/peterelmwood/django_userdefinedtables/compare/v0.0.16...v0.0.17
 [0.0.16]: https://github.com/peterelmwood/django_userdefinedtables/compare/v0.0.15...v0.0.16
