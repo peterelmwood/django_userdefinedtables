@@ -12,8 +12,12 @@ on:
 permissions:
   contents: read
 
+# The "test-" prefix keeps this group distinct when the workflow is called by
+# another one: there github.workflow is the caller's name, so without it the
+# group would equal the caller's own concurrency group and the run would fail
+# at startup.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: test-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
