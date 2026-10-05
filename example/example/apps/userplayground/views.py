@@ -6,7 +6,17 @@ from django.views import generic
 from django.views.decorators.csrf import csrf_protect
 
 from example.apps.userplayground.forms import AddColumnForm, AddTableForm
-from userdefinedtables.models import COLUMN_TYPES, ENTRY_TYPES, Column, List, Row
+from userdefinedtables.models import (
+    COLUMN_TYPES,
+    ENTRY_TYPES,
+    Choice,
+    ChoiceColumn,
+    Column,
+    Entry,
+    List,
+    LookupColumn,
+    Row,
+)
 
 # The UniqueConstraint on Column that forbids two columns with the same name in one list
 COLUMN_NAME_CONSTRAINT = next(
@@ -41,6 +51,49 @@ def get_column_type_instance(column):
         except (AttributeError, ObjectDoesNotExist):
             continue
     return None
+
+
+def get_entry_type_for_column_type(column_model_name):
+    """Map a column model name to its matching entry type class."""
+    for entry_type in ENTRY_TYPES:
+        entry_model_name = entry_type._meta.model_name
+        stem = entry_model_name.removesuffix("entry")
+        if stem == column_model_name:
+            return entry_type
+        if not stem.endswith("column") and f"{stem}column" == column_model_name:
+            return entry_type
+    return None
+
+
+def get_columns_with_types(columns):
+    columns_with_types = []
+    for column in columns:
+        column_type = get_column_type_instance(column)
+        type_name = column_type.__class__.__name__ if column_type else "Unknown"
+        col_info = {
+            "column": column,
+            "type_name": type_name,
+        }
+
+        if isinstance(column_type, ChoiceColumn):
+            col_info["choices"] = Choice.objects.all()
+        elif isinstance(column_type, LookupColumn):
+            lookup_entries = []
+            lookup_column_type = get_column_type_instance(column_type.lookup_column)
+            if lookup_column_type:
+                lookup_entry_type = get_entry_type_for_column_type(lookup_column_type._meta.model_name)
+                if lookup_entry_type:
+                    lookup_entries = list(
+                        lookup_entry_type.objects.filter(
+                            column=lookup_column_type,
+                            row__in=column_type.lookup_list.rows.all(),
+                        ).select_related("row")
+                    )
+            col_info["lookup_entries"] = lookup_entries
+
+        columns_with_types.append(col_info)
+
+    return columns_with_types
 
 
 class ListsView(generic.ListView):
@@ -167,66 +220,95 @@ def list_detail(request, list_pk):
 def add_row(request, list_pk):
     """View to add a new row with data entry."""
     my_list = get_object_or_404(List, pk=list_pk)
-    columns = my_list.columns.all().order_by("index")
+    columns = list(my_list.columns.all().order_by("index"))
 
     if request.method == "POST":
-        # Create a new row
-        row = Row.objects.create(list=my_list)
+        has_errors = False
+        try:
+            with transaction.atomic():
+                row = Row.objects.create(list=my_list)
 
-        # Save entries for each column
-        for column in columns:
-            # Get the specific column type instance
-            column_type = get_column_type_instance(column)
+                for column in columns:
+                    column_type = get_column_type_instance(column)
+                    if not column_type:
+                        continue
 
-            if column_type:
-                # Find corresponding entry type
-                entry_type = None
-                for et in ENTRY_TYPES:
-                    if et._meta.model_name.replace("entry", "column") == column_type._meta.model_name:
-                        entry_type = et
-                        break
+                    entry_type = get_entry_type_for_column_type(column_type._meta.model_name)
+                    if not entry_type:
+                        continue
 
-                if entry_type:
                     field_name = f"column_{column.pk}"
-                    value = request.POST.get(field_name, "")
+                    entry_model_name = entry_type._meta.model_name
 
-                    if value or not column.required:
-                        try:
-                            # Handle different entry types
-                            if entry_type._meta.model_name == "binarycolumnentry":
-                                normalized = value.strip().lower()
-                                if not normalized and not column.required:
-                                    # Preserve "no selection" for optional fields
-                                    value = None
-                                elif normalized in ["true", "1", "yes", "on"]:
-                                    value = True
-                                elif normalized in ["false", "0", "no", "off"]:
-                                    value = False
-                                else:
-                                    # Fallback to previous behavior: anything not explicitly truthy is False
-                                    value = False
-                            entry_type.objects.create(row=row, column=column_type, value=value)
-                        except Exception as e:
-                            messages.error(request, f"Error saving {column.name}: {e!s}")
+                    if entry_model_name == "binarycolumnentry":
+                        normalized = request.POST.get(field_name, "").strip().lower()
+                        if not normalized:
+                            if column.required:
+                                messages.error(request, f"Value is required for {column.name}")
+                                has_errors = True
+                            continue
+                        if normalized in ["true", "1", "yes", "on"]:
+                            value = True
+                        elif normalized in ["false", "0", "no", "off"]:
+                            value = False
+                        else:
+                            value = False
+                        entry_type.objects.create(row=row, column=column_type, value=value)
+                    elif entry_model_name == "choiceentry":
+                        choice_id = request.POST.get(field_name, "").strip()
+                        if not choice_id:
+                            if column.required:
+                                messages.error(request, f"Choice is required for {column.name}")
+                                has_errors = True
+                            continue
+                        choice = Choice.objects.filter(pk=choice_id).first()
+                        if not choice:
+                            messages.error(request, f"Invalid choice selected for {column.name}")
+                            has_errors = True
+                            continue
+                        entry_type.objects.create(row=row, column=column_type, value=choice)
+                    elif entry_model_name == "picturecolumnentry":
+                        uploaded_file = request.FILES.get(field_name)
+                        if not uploaded_file:
+                            if column.required:
+                                messages.error(request, f"Picture is required for {column.name}")
+                                has_errors = True
+                            continue
+                        entry_type.objects.create(row=row, column=column_type, value=uploaded_file)
+                    elif entry_model_name == "lookupcolumnentry":
+                        lookup_entry_id = request.POST.get(field_name, "").strip()
+                        if not lookup_entry_id:
+                            if column.required:
+                                messages.error(request, f"Lookup value is required for {column.name}")
+                                has_errors = True
+                            continue
+                        lookup_entry = Entry.objects.filter(pk=lookup_entry_id).first()
+                        if not lookup_entry:
+                            messages.error(request, f"Invalid lookup value selected for {column.name}")
+                            has_errors = True
+                            continue
+                        entry_type.objects.create(row=row, column=column_type, value=lookup_entry)
+                    else:
+                        value = request.POST.get(field_name, "")
+                        if not value:
+                            if column.required:
+                                messages.error(request, f"Value is required for {column.name}")
+                                has_errors = True
+                            continue
+                        entry_type.objects.create(row=row, column=column_type, value=value)
 
-        messages.success(request, "Row added successfully!")
-        return redirect("list_detail", list_pk=list_pk)
-
-    # Prepare columns with their type information for the template
-    columns_with_types = []
-    for column in columns:
-        column_type = get_column_type_instance(column)
-        type_name = column_type.__class__.__name__ if column_type else "Unknown"
-        columns_with_types.append(
-            {
-                "column": column,
-                "type_name": type_name,
-            }
-        )
+                if has_errors:
+                    raise ValueError("row_validation_failed")
+        except ValueError as exc:
+            if str(exc) != "row_validation_failed":
+                raise
+        else:
+            messages.success(request, "Row added successfully!")
+            return redirect("list_detail", list_pk=list_pk)
 
     context = {
         "list": my_list,
-        "columns_with_types": columns_with_types,
+        "columns_with_types": get_columns_with_types(columns),
     }
     return render(request, "add_row.html", context=context)
 
