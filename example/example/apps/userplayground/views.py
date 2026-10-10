@@ -6,7 +6,7 @@ from django.views import generic
 from django.views.decorators.csrf import csrf_protect
 
 from example.apps.userplayground.forms import AddColumnForm, AddTableForm
-from userdefinedtables.models import COLUMN_TYPES, ENTRY_TYPES, Column, List, Row
+from userdefinedtables.models import COLUMN_TYPES, ENTRY_TYPES, Column, List, Row, get_entry_type_for_column
 
 # The UniqueConstraint on Column that forbids two columns with the same name in one list
 COLUMN_NAME_CONSTRAINT = next(
@@ -180,11 +180,7 @@ def add_row(request, list_pk):
 
             if column_type:
                 # Find corresponding entry type
-                entry_type = None
-                for et in ENTRY_TYPES:
-                    if et._meta.model_name.replace("entry", "column") == column_type._meta.model_name:
-                        entry_type = et
-                        break
+                entry_type = get_entry_type_for_column(type(column_type))
 
                 if entry_type:
                     field_name = f"column_{column.pk}"
