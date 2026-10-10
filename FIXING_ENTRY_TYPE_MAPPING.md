@@ -37,7 +37,7 @@ Use the new mapping utilities added in `userdefinedtables/models.py`:
 **Before:**
 ```python
 for entry_type in ENTRY_TYPES:
-    if entry_type._meta.model_name.replace('entry', 'column') == column_type._meta.model_name:
+    if entry_type._meta.model_name.replace("entry", "column") == column_type._meta.model_name:
         try:
             entry = entry_type.objects.filter(row=row, column=column_type).first()
         except (AttributeError, ObjectDoesNotExist):
@@ -67,7 +67,7 @@ if column_type:
 # Find corresponding entry type
 entry_type = None
 for et in ENTRY_TYPES:
-    if et._meta.model_name.replace('entry', 'column') == column_type._meta.model_name:
+    if et._meta.model_name.replace("entry", "column") == column_type._meta.model_name:
         entry_type = et
         break
 ```

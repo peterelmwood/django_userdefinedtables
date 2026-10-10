@@ -54,149 +54,83 @@ class TypeMappingTestCase(TestCase):
     def test_singlelineoftext_mapping(self):
         """Test mapping for SingleLineOfText types (has 'column' in name)."""
         # Column to Entry
-        self.assertEqual(
-            get_entry_type_for_column(SingleLineOfTextColumn),
-            SingleLineOfTextColumnEntry
-        )
-        self.assertEqual(
-            COLUMN_TO_ENTRY[SingleLineOfTextColumn],
-            SingleLineOfTextColumnEntry
-        )
+        self.assertEqual(get_entry_type_for_column(SingleLineOfTextColumn), SingleLineOfTextColumnEntry)
+        self.assertEqual(COLUMN_TO_ENTRY[SingleLineOfTextColumn], SingleLineOfTextColumnEntry)
         # Entry to Column
-        self.assertEqual(
-            get_column_type_for_entry(SingleLineOfTextColumnEntry),
-            SingleLineOfTextColumn
-        )
-        self.assertEqual(
-            ENTRY_TO_COLUMN[SingleLineOfTextColumnEntry],
-            SingleLineOfTextColumn
-        )
+        self.assertEqual(get_column_type_for_entry(SingleLineOfTextColumnEntry), SingleLineOfTextColumn)
+        self.assertEqual(ENTRY_TO_COLUMN[SingleLineOfTextColumnEntry], SingleLineOfTextColumn)
 
     def test_multiplelinetext_mapping(self):
         """Test mapping for MultipleLineText types (has 'column' in name)."""
         # Column to Entry
-        self.assertEqual(
-            get_entry_type_for_column(MultipleLineTextColumn),
-            MultipleLineTextColumnEntry
-        )
-        
+        self.assertEqual(get_entry_type_for_column(MultipleLineTextColumn), MultipleLineTextColumnEntry)
+
         # Entry to Column
-        self.assertEqual(
-            get_column_type_for_entry(MultipleLineTextColumnEntry),
-            MultipleLineTextColumn
-        )
+        self.assertEqual(get_column_type_for_entry(MultipleLineTextColumnEntry), MultipleLineTextColumn)
 
     def test_datetime_mapping(self):
         """Test mapping for DateTime types (has 'column' in name)."""
         # Column to Entry
-        self.assertEqual(
-            get_entry_type_for_column(DateTimeColumn),
-            DateTimeColumnEntry
-        )
-        
+        self.assertEqual(get_entry_type_for_column(DateTimeColumn), DateTimeColumnEntry)
+
         # Entry to Column
-        self.assertEqual(
-            get_column_type_for_entry(DateTimeColumnEntry),
-            DateTimeColumn
-        )
+        self.assertEqual(get_column_type_for_entry(DateTimeColumnEntry), DateTimeColumn)
 
     def test_binary_mapping(self):
         """Test mapping for Binary types (has 'column' in name)."""
         # Column to Entry
-        self.assertEqual(
-            get_entry_type_for_column(BinaryColumn),
-            BinaryColumnEntry
-        )
-        
+        self.assertEqual(get_entry_type_for_column(BinaryColumn), BinaryColumnEntry)
+
         # Entry to Column
-        self.assertEqual(
-            get_column_type_for_entry(BinaryColumnEntry),
-            BinaryColumn
-        )
+        self.assertEqual(get_column_type_for_entry(BinaryColumnEntry), BinaryColumn)
 
     def test_picture_mapping(self):
         """Test mapping for Picture types (has 'column' in name)."""
         # Column to Entry
-        self.assertEqual(
-            get_entry_type_for_column(PictureColumn),
-            PictureColumnEntry
-        )
-        
+        self.assertEqual(get_entry_type_for_column(PictureColumn), PictureColumnEntry)
+
         # Entry to Column
-        self.assertEqual(
-            get_column_type_for_entry(PictureColumnEntry),
-            PictureColumn
-        )
+        self.assertEqual(get_column_type_for_entry(PictureColumnEntry), PictureColumn)
 
     def test_lookup_mapping(self):
         """Test mapping for Lookup types (has 'column' in name)."""
         # Column to Entry
-        self.assertEqual(
-            get_entry_type_for_column(LookupColumn),
-            LookupColumnEntry
-        )
-        
+        self.assertEqual(get_entry_type_for_column(LookupColumn), LookupColumnEntry)
+
         # Entry to Column
-        self.assertEqual(
-            get_column_type_for_entry(LookupColumnEntry),
-            LookupColumn
-        )
+        self.assertEqual(get_column_type_for_entry(LookupColumnEntry), LookupColumn)
 
     def test_url_mapping(self):
         """Test mapping for URL types (has 'column' in name)."""
         # Column to Entry
-        self.assertEqual(
-            get_entry_type_for_column(URLColumn),
-            URLColumnEntry
-        )
-        
+        self.assertEqual(get_entry_type_for_column(URLColumn), URLColumnEntry)
+
         # Entry to Column
-        self.assertEqual(
-            get_column_type_for_entry(URLColumnEntry),
-            URLColumn
-        )
+        self.assertEqual(get_column_type_for_entry(URLColumnEntry), URLColumn)
 
     def test_choice_mapping(self):
         """Test mapping for Choice types (no 'column' in entry name)."""
         # Column to Entry
-        self.assertEqual(
-            get_entry_type_for_column(ChoiceColumn),
-            ChoiceEntry
-        )
-        
+        self.assertEqual(get_entry_type_for_column(ChoiceColumn), ChoiceEntry)
+
         # Entry to Column
-        self.assertEqual(
-            get_column_type_for_entry(ChoiceEntry),
-            ChoiceColumn
-        )
+        self.assertEqual(get_column_type_for_entry(ChoiceEntry), ChoiceColumn)
 
     def test_number_mapping(self):
         """Test mapping for Number types (no 'column' in entry name)."""
         # Column to Entry
-        self.assertEqual(
-            get_entry_type_for_column(NumberColumn),
-            NumberEntry
-        )
-        
+        self.assertEqual(get_entry_type_for_column(NumberColumn), NumberEntry)
+
         # Entry to Column
-        self.assertEqual(
-            get_column_type_for_entry(NumberEntry),
-            NumberColumn
-        )
+        self.assertEqual(get_column_type_for_entry(NumberEntry), NumberColumn)
 
     def test_currency_mapping(self):
         """Test mapping for Currency types (no 'column' in entry name)."""
         # Column to Entry
-        self.assertEqual(
-            get_entry_type_for_column(CurrencyColumn),
-            CurrencyEntry
-        )
-        
+        self.assertEqual(get_entry_type_for_column(CurrencyColumn), CurrencyEntry)
+
         # Entry to Column
-        self.assertEqual(
-            get_column_type_for_entry(CurrencyEntry),
-            CurrencyColumn
-        )
+        self.assertEqual(get_column_type_for_entry(CurrencyEntry), CurrencyColumn)
 
     def test_get_entry_type_for_column_returns_none_for_invalid(self):
         """get_entry_type_for_column should return None for unknown column types."""

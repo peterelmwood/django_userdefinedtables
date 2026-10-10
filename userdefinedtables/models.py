@@ -355,17 +355,17 @@ ENTRY_TYPES = [
 
 # Create mappings between column types and entry types
 # These are index-aligned lists, so we can create bidirectional mappings
-COLUMN_TO_ENTRY = dict(zip(COLUMN_TYPES, ENTRY_TYPES))
-ENTRY_TO_COLUMN = dict(zip(ENTRY_TYPES, COLUMN_TYPES))
+COLUMN_TO_ENTRY = dict(zip(COLUMN_TYPES, ENTRY_TYPES, strict=True))
+ENTRY_TO_COLUMN = dict(zip(ENTRY_TYPES, COLUMN_TYPES, strict=True))
 
 
 def get_entry_type_for_column(column_type):
     """
     Get the corresponding entry type class for a given column type class.
-    
+
     Args:
         column_type: A column type class (e.g., SingleLineOfTextColumn)
-    
+
     Returns:
         The corresponding entry type class (e.g., SingleLineOfTextColumnEntry)
         or None if not found
@@ -376,10 +376,10 @@ def get_entry_type_for_column(column_type):
 def get_column_type_for_entry(entry_type):
     """
     Get the corresponding column type class for a given entry type class.
-    
+
     Args:
         entry_type: An entry type class (e.g., SingleLineOfTextColumnEntry)
-    
+
     Returns:
         The corresponding column type class (e.g., SingleLineOfTextColumn)
         or None if not found
