@@ -186,24 +186,21 @@ def add_row(request, list_pk):
                     field_name = f"column_{column.pk}"
                     value = request.POST.get(field_name, "")
 
-                    if value or not column.required:
-                        try:
-                            # Handle different entry types
-                            if entry_type._meta.model_name == "binarycolumnentry":
-                                normalized = value.strip().lower()
-                                if not normalized and not column.required:
-                                    # Preserve "no selection" for optional fields
-                                    value = None
-                                elif normalized in ["true", "1", "yes", "on"]:
-                                    value = True
-                                elif normalized in ["false", "0", "no", "off"]:
-                                    value = False
-                                else:
-                                    # Fallback to previous behavior: anything not explicitly truthy is False
-                                    value = False
-                            entry_type.objects.create(row=row, column=column_type, value=value)
-                        except Exception as e:
-                            messages.error(request, f"Error saving {column.name}: {e!s}")
+                    try:
+                        if entry_type._meta.model_name == "binarycolumnentry":
+                            normalized = value.strip().lower()
+                            if not normalized:
+                                # Empty optional binary fields stay unset (no entry);
+                                # required ones are an error.
+                                if column.required:
+                                    messages.error(request, f"{column.name} is required")
+                                continue
+                            value = normalized in ["true", "1", "yes", "on"]
+                        elif not value and column.required:
+                            continue
+                        entry_type.objects.create(row=row, column=column_type, value=value)
+                    except Exception as e:
+                        messages.error(request, f"Error saving {column.name}: {e!s}")
 
         messages.success(request, "Row added successfully!")
         return redirect("list_detail", list_pk=list_pk)
