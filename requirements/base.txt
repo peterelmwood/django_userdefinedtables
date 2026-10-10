@@ -1,8 +1,0 @@
-django
-django-bootstrap-v5
-
-# testing
-model_bakery
-
-# for ImageField
-Pillow

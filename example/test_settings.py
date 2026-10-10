@@ -1,8 +1,11 @@
 """
-Django settings for django_userdefinedtables project.
+Django settings for testing the example locally without PostgreSQL.
+
+WARNING: This file is for LOCAL TESTING ONLY and should NEVER be used in production.
+The secret key and ALLOWED_HOSTS settings are insecure and only suitable for
+local development testing.
 """
 
-import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -69,18 +72,11 @@ TEMPLATES = [
     },
 ]
 
-# Database
-# https://docs.djangoproject.com/en/4.0/ref/settings/#databases
-
-# make sure to get ownership of the directory you point to
+# Database - using SQLite for testing
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("POSTGRES_NAME"),
-        "USER": os.environ.get("POSTGRES_USER"),
-        "PASSWORD": os.environ.get("POSTGRES_PASSWORD"),
-        "HOST": os.environ.get("POSTGRES_HOST", "db"),
-        "PORT": 5432,
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "example" / "db.sqlite3",
     }
 }
 

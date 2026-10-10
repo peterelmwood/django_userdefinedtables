@@ -5,20 +5,18 @@ Defines the boilerplate tests for models that inherit the OrderableMixin.
 """
 
 # stdlib
-from typing import Union
 
 # django
 from django.test import TestCase
 
 # local django
-
 # thirdparty
 from model_bakery import baker
 
 
 class OrderableMixinTestSuite:
     class OrderableMixinTestCase(TestCase):
-        orderable_model: Union[str, None] = None
+        orderable_model: str | None = None
 
         def test__adding_a_new_row_at_existing_index_moves_the_occupying_row(self):
             # ASSIGN
