@@ -1,0 +1,167 @@
+"""Tests for scripts/release.py. Run with: python -m unittest discover -s scripts -p 'test_*.py'"""
+
+import contextlib
+import io
+import pathlib
+import tempfile
+import unittest
+from unittest import mock
+
+import release
+
+REPO = release.REPO_URL
+
+CHANGELOG = """# Changelog
+
+## [Unreleased]
+
+### Added
+- A new thing
+
+## [0.0.14] - 2022
+
+### Added
+- Initial release
+
+[Unreleased]: https://github.com/peterelmwood/django_userdefinedtables/compare/v0.0.14...HEAD
+[0.0.14]: https://github.com/peterelmwood/django_userdefinedtables/releases/tag/v0.0.14
+"""
+
+
+class BumpVersionTests(unittest.TestCase):
+    def test_levels(self):
+        self.assertEqual(release.bump_version("0.0.14", "patch"), "0.0.15")
+        self.assertEqual(release.bump_version("0.0.14", "minor"), "0.1.0")
+        self.assertEqual(release.bump_version("0.0.14", "major"), "1.0.0")
+        self.assertEqual(release.bump_version("1.2.3", "minor"), "1.3.0")
+
+    def test_rejects_unknown_level(self):
+        with self.assertRaises(ValueError):
+            release.bump_version("0.0.14", "huge")
+
+
+class LevelFromLabelsTests(unittest.TestCase):
+    def test_defaults_to_patch(self):
+        self.assertEqual(release.level_from_labels([]), "patch")
+        self.assertEqual(release.level_from_labels(["bug", "enhancement"]), "patch")
+
+    def test_picks_highest_level_across_labels(self):
+        self.assertEqual(release.level_from_labels(["release:patch"]), "patch")
+        self.assertEqual(release.level_from_labels(["bug", "release:minor"]), "minor")
+        self.assertEqual(release.level_from_labels(["release:minor", "release:major", "release:patch"]), "major")
+
+    def test_ignores_skip(self):
+        self.assertEqual(release.level_from_labels(["release:skip"]), "patch")
+        self.assertEqual(release.level_from_labels(["release:minor", "release:skip"]), "minor")
+
+    def test_label_names_are_not_split(self):
+        # A single label whose name happens to contain a comma is not two labels.
+        self.assertEqual(release.level_from_labels(["docs,release:major"]), "patch")
+
+    def test_labels_from_jsonl(self):
+        stream = io.StringIO('["bug", "docs,release:major"]\n\n["release:minor"]\n')
+        self.assertEqual(list(release.labels_from_jsonl(stream)), ["bug", "docs,release:major", "release:minor"])
+        self.assertEqual(release.level_from_labels(release.labels_from_jsonl(io.StringIO(stream.getvalue()))), "minor")
+        with self.assertRaises(ValueError):
+            list(release.labels_from_jsonl(io.StringIO('{"not": "a list"}\n')))
+        with self.assertRaises(ValueError):
+            list(release.labels_from_jsonl(io.StringIO('["ok"] not json')))
+
+    def test_labels_from_pretty_printed_json(self):
+        # GitHub's toJSON() expression pretty-prints a non-empty array over several lines.
+        pretty = '["a"]\n[\n  "release:major",\n  "bug"\n]\n\n[]\n'
+        self.assertEqual(list(release.labels_from_jsonl(io.StringIO(pretty))), ["a", "release:major", "bug"])
+        self.assertEqual(release.level_from_labels(release.labels_from_jsonl(io.StringIO(pretty))), "major")
+        self.assertEqual(list(release.labels_from_jsonl(io.StringIO(""))), [])
+
+
+class InitVersionTests(unittest.TestCase):
+    INIT = '"""doc"""\n\n__version__ = "0.0.14"\n\nVERSION = __version__\n'
+
+    def test_read_and_set(self):
+        self.assertEqual(release.read_version(self.INIT), "0.0.14")
+        updated = release.set_version(self.INIT, "0.0.15")
+        self.assertEqual(release.read_version(updated), "0.0.15")
+        self.assertIn("VERSION = __version__", updated)
+
+    def test_missing_version_raises(self):
+        with self.assertRaises(RuntimeError):
+            release.read_version("nothing here")
+
+
+class RollChangelogTests(unittest.TestCase):
+    def test_moves_unreleased_under_new_version(self):
+        rolled = release.roll_changelog(CHANGELOG, "0.0.14", "0.0.15", "2026-09-16")
+        self.assertIn(
+            "## [Unreleased]\n\n## [0.0.15] - 2026-09-16\n\n### Added\n- A new thing\n\n## [0.0.14] - 2022", rolled
+        )
+        self.assertIn(f"[Unreleased]: {REPO}/compare/v0.0.15...HEAD", rolled)
+        self.assertIn(f"[0.0.15]: {REPO}/compare/v0.0.14...v0.0.15", rolled)
+        self.assertIn(f"[0.0.14]: {REPO}/releases/tag/v0.0.14", rolled)
+        self.assertEqual(rolled.count("[Unreleased]:"), 1)
+
+    def test_empty_unreleased_section_gets_a_note(self):
+        text = (
+            "# Changelog\n\n## [Unreleased]\n\n## [0.0.14] - 2022\n\n- old\n\n[Unreleased]: x/compare/v0.0.14...HEAD\n"
+        )
+        rolled = release.roll_changelog(text, "0.0.14", "0.0.15", "2026-09-16")
+        expected = "## [0.0.15] - 2026-09-16\n\n" + release.EMPTY_SECTION_NOTE + "\n\n## [0.0.14]"
+        self.assertIn(expected, rolled)
+
+    def test_unreleased_is_last_section_and_links_missing(self):
+        text = "# Changelog\n\n## [Unreleased]\n\n- first ever change\n"
+        rolled = release.roll_changelog(text, "0.0.0", "0.0.1", "2026-09-16")
+        self.assertIn("## [Unreleased]\n\n## [0.0.1] - 2026-09-16\n\n- first ever change\n", rolled)
+        expected_tail = f"[Unreleased]: {REPO}/compare/v0.0.1...HEAD\n[0.0.1]: {REPO}/compare/v0.0.0...v0.0.1\n"
+        self.assertTrue(rolled.endswith(expected_tail), rolled)
+
+    def test_missing_unreleased_raises(self):
+        with self.assertRaises(RuntimeError):
+            release.roll_changelog("# Changelog\n\n## [0.0.14]\n", "0.0.14", "0.0.15", "2026-09-16")
+
+    def test_roundtrip_is_idempotent_on_headings(self):
+        once = release.roll_changelog(CHANGELOG, "0.0.14", "0.0.15", "2026-09-16")
+        twice = release.roll_changelog(once, "0.0.15", "0.0.16", "2026-09-17")
+        self.assertIn("## [Unreleased]\n\n## [0.0.16] - 2026-09-17\n\n" + release.EMPTY_SECTION_NOTE, twice)
+        self.assertIn("## [0.0.15] - 2026-09-16\n\n### Added\n- A new thing", twice)
+
+
+class CmdBumpTests(unittest.TestCase):
+    def _run(self, changelog_text):
+        with tempfile.TemporaryDirectory() as tmp:
+            init = pathlib.Path(tmp, "__init__.py")
+            changelog = pathlib.Path(tmp, "CHANGELOG.md")
+            init.write_text(InitVersionTests.INIT)
+            changelog.write_text(changelog_text)
+            with (
+                mock.patch.object(release, "INIT_PATH", init),
+                mock.patch.object(release, "CHANGELOG_PATH", changelog),
+                contextlib.suppress(RuntimeError),
+            ):
+                release.main(["bump", "patch", "--date", "2026-09-16"])
+            return init.read_text(), changelog.read_text()
+
+    def test_writes_both_files(self):
+        init_text, changelog_text = self._run(CHANGELOG)
+        self.assertEqual(release.read_version(init_text), "0.0.15")
+        self.assertIn("## [0.0.15] - 2026-09-16", changelog_text)
+
+    def test_malformed_changelog_leaves_version_untouched(self):
+        init_text, changelog_text = self._run("# Changelog with no Unreleased section\n")
+        self.assertEqual(release.read_version(init_text), "0.0.14")
+        self.assertEqual(changelog_text, "# Changelog with no Unreleased section\n")
+
+
+class ReleaseNotesTests(unittest.TestCase):
+    def test_extracts_section_body_without_links(self):
+        rolled = release.roll_changelog(CHANGELOG, "0.0.14", "0.0.15", "2026-09-16")
+        self.assertEqual(release.release_notes(rolled, "0.0.15"), "### Added\n- A new thing\n")
+        self.assertEqual(release.release_notes(rolled, "0.0.14"), "### Added\n- Initial release\n")
+
+    def test_missing_section_raises(self):
+        with self.assertRaises(RuntimeError):
+            release.release_notes(CHANGELOG, "9.9.9")
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,8 +1,7 @@
 from django.test import TestCase
-
 from model_bakery import baker
 
-from userdefinedtables.models import BinaryColumn, BinaryColumnEntry, Row
+from userdefinedtables.models import BinaryColumnEntry
 
 
 class BinaryColumnEntryTestCase(TestCase):
@@ -16,10 +15,10 @@ class BinaryColumnEntryTestCase(TestCase):
             required=False,
         )
         row = baker.make("userdefinedtables.row", list=list_1)
-        
+
         # ACT - Don't create an entry for the binary column
         # No entry created means the value is "unset" (not False or True)
-        
+
         # ASSERT
         # There should be no entry for this row/column combination
         entries = BinaryColumnEntry.objects.filter(row=row, column=binary_column)
@@ -35,14 +34,10 @@ class BinaryColumnEntryTestCase(TestCase):
             required=False,
         )
         row = baker.make("userdefinedtables.row", list=list_1)
-        
+
         # ACT - Explicitly create an entry with value=False
-        entry = BinaryColumnEntry.objects.create(
-            row=row,
-            column=binary_column,
-            value=False
-        )
-        
+        entry = BinaryColumnEntry.objects.create(row=row, column=binary_column, value=False)
+
         # ASSERT
         # Entry should exist with value False
         self.assertIsNotNone(entry)
@@ -60,14 +55,10 @@ class BinaryColumnEntryTestCase(TestCase):
             required=False,
         )
         row = baker.make("userdefinedtables.row", list=list_1)
-        
+
         # ACT - Create an entry with value=True
-        entry = BinaryColumnEntry.objects.create(
-            row=row,
-            column=binary_column,
-            value=True
-        )
-        
+        entry = BinaryColumnEntry.objects.create(row=row, column=binary_column, value=True)
+
         # ASSERT
         self.assertIsNotNone(entry)
         self.assertTrue(entry.value)
@@ -82,14 +73,10 @@ class BinaryColumnEntryTestCase(TestCase):
             required=True,
         )
         row = baker.make("userdefinedtables.row", list=list_1)
-        
+
         # ACT - Create an entry (required)
-        entry = BinaryColumnEntry.objects.create(
-            row=row,
-            column=binary_column,
-            value=False
-        )
-        
+        entry = BinaryColumnEntry.objects.create(row=row, column=binary_column, value=False)
+
         # ASSERT
         self.assertIsNotNone(entry)
         entries = BinaryColumnEntry.objects.filter(row=row, column=binary_column)

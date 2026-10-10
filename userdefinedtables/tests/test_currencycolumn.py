@@ -11,7 +11,6 @@ from django.db import IntegrityError
 from django.test import TestCase
 
 # local django
-
 # thirdparty
 from model_bakery import baker
 

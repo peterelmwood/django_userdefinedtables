@@ -1,22 +1,39 @@
-default_language_version:
-  # default language version for each language
-  python: python3.9
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v3.4.0
+    rev: v6.0.0
     hooks:
-      # See https://pre-commit.com/hooks.html for more hooks
       - id: check-ast
       - id: check-case-conflict
       - id: check-executables-have-shebangs
       - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
       - id: debug-statements
       - id: end-of-file-fixer
       - id: name-tests-test
-        args: [ "--django" ]
+        args: ["--django"]
+        exclude: ^example/
       - id: trailing-whitespace
       - id: mixed-line-ending
-        args: [ "--fix=lf" ]
+        args: ["--fix=lf"]
       - id: pretty-format-json
-        args: [ "--no-sort-keys" ]
-      - id: requirements-txt-fixer
+        args: ["--no-sort-keys"]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.7
+    hooks:
+      - id: ruff-check
+        args: ["--fix"]
+      - id: ruff-format
+
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.12.15
+    hooks:
+      # Keep uv.lock in sync with pyproject.toml
+      - id: uv-lock
+
+  - repo: https://github.com/adamchainz/django-upgrade
+    rev: 1.32.0
+    hooks:
+      - id: django-upgrade
+        args: ["--target-version", "5.2"]
